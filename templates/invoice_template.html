@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Masterpiece Empire</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo img {
+            max-width: 200px; /* Adjust as needed */
+            height: auto;
+        }
+        .header {
+            font-size: 28px;
+            font-weight: bold;
+            color:  #00b351;
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            background-color: #fdfdfd;
+        }
+        .section strong {
+            color: #555;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table thead tr {
+            background-color: #00b351;
+            color: #fff;
+            text-align: left;
+        }
+        table th, table td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+        table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        table tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+        .total-section {
+            text-align: right;
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+        }
+        .total-section strong {
+            color: #00b351;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="../src/assets/images/Hero.png" alt="Company Logo">
+            </div>
+
+        <div class="header">Invoice</div>
+
+        <div class="section">
+            <strong>Order ID:</strong> {{ order.id }}<br>
+            <strong>Date:</strong> {{ order.created_at|date:"Y-m-d H:i" }}<br>
+            <strong>Status:</strong> {{ order.status|title }}
+        </div>
+
+        <div class="section">
+            <strong>Customer:</strong><br>
+            {{ guest_user.get_full_name }}<br>
+            {{ guest_user.email }}<br>
+            {{ shipping_address.address }}<br>
+        </div>
+
+        <div class="section">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Price</th>                       
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order_items %}
+                    <tr>
+                        <td>{{ item.product.name }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.price }}</td>
+                        <td>{{ item.quantity|floatformat:2|add:""|add:item.price|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="total-section">
+            <strong>Total:</strong> {{ order.total_price }} KES
+        </div>
+    </div>
+</body>
+</html>
