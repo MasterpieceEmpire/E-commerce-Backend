@@ -38,4 +38,5 @@ venv/
 db.sqlite3
 media/       # uploaded files (like invoices, images, etc.)
 staticfiles/
-backend/media/
+backend/media/.env
+sendgrid.env
