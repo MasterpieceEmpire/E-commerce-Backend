@@ -1,5 +1,6 @@
 # models.py
 import uuid
+from cloudinary.models import CloudinaryField
 from django.db import models
 from django.utils.text import slugify
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
@@ -66,7 +67,7 @@ class Product(models.Model):
     id = ObjectIdAutoField(primary_key=True)
     name = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='products/', blank=True, null=True)
+    image = CloudinaryField('image', blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     description = models.TextField()
 
@@ -149,7 +150,7 @@ class OrderItem(models.Model):
 class HireItem(models.Model):
     id = ObjectIdAutoField(primary_key=True)
     name = models.CharField(max_length=255)
-    image = models.ImageField(upload_to='hire-items/', blank=True, null=True)
+    image = CloudinaryField('image', blank=True, null=True)
     details = models.TextField(blank=True)
     hire_price_per_hour = models.DecimalField(max_digits=10, decimal_places=2)
     hire_price_per_day = models.DecimalField(max_digits=10, decimal_places=2)

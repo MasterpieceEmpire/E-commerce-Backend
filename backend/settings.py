@@ -25,6 +25,9 @@ ALLOWED_HOSTS = ["*"]  # ⚠️ Change in production (add domain or IP)
 # APPLICATION DEFINITION
 # -------------------------------------------------------------------
 INSTALLED_APPS = [
+    'cloudinary',
+    'cloudinary_storage',
+    'storages',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -44,6 +47,7 @@ AUTH_USER_MODEL = "megamall.GuestUser"
 # MIDDLEWARE
 # -------------------------------------------------------------------
 MIDDLEWARE = [
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'megamall.middleware.EarlyPatchMiddleware',
     "django.middleware.security.SecurityMiddleware",
@@ -81,6 +85,7 @@ WSGI_APPLICATION = "backend.wsgi.application"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://e-commerce-frontend-six-flax.vercel.app/",
 ]
 
 # Use only one authentication backend
@@ -136,9 +141,20 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # -------------------------------------------------------------------
 # DEFAULT PRIMARY KEY FIELD
 # -------------------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django_mongodb_backend.fields.ObjectIdAutoField"
+
+# -------------------------------------------------------------------
+# CLOUDINARY STORAGE CONFIGURATION
+# -------------------------------------------------------------------
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': config('CLOUDINARY_API_KEY'),
+    'API_SECRET': config('CLOUDINARY_API_SECRET'),
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
