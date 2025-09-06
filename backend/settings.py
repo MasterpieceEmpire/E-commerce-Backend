@@ -83,7 +83,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "backend.wsgi.application"
 
 CORS_ALLOWED_ORIGINS = [
-    "https://e-commerce-frontend-six-flax.vercel.app",
+    "https://masterpiece-frontend.vercel.app",
 ]
 
 # Use only one authentication backend
