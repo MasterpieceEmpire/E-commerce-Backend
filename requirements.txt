@@ -53,3 +53,4 @@ django-mongodb-backend
 pymongo
 cloudinary==1.27.0
 django-cloudinary-storage
+django-storages
