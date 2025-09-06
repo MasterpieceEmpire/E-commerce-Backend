@@ -117,6 +117,9 @@ class ProductView(viewsets.ModelViewSet):
             return Product.objects.filter(category__slug=category_slug)
         return Product.objects.all()
 
+    def get_serializer_context(self):
+        return {'request': self.request}
+
 
 class CategoryView(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -167,6 +170,10 @@ class ShippingAddressViewSet(viewsets.ModelViewSet):
 class HireItemViewSet(viewsets.ModelViewSet):
     queryset = HireItem.objects.all()
     serializer_class = HireItemSerializer
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
