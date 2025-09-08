@@ -10,34 +10,19 @@ import cloudinary
 # Product Serializer
 # ----------------------------
 class ProductSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
-    category = serializers.SlugRelatedField(
-        queryset=Category.objects.all(),
-        slug_field='name'
-    )
     image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
         fields = ['id', 'name', 'price', 'image', 'image_url', 'description', 'category']
-        extra_kwargs = {
-            'image': {'write_only': True}
-        }
-
+    
     def get_image_url(self, obj):
         if obj.image:
-            # This will automatically use Cloudinary URL if configured properly
-            return obj.image.url
+            # Force Cloudinary URL generation
+            from cloudinary_storage.storage import MediaCloudinaryStorage
+            storage = MediaCloudinaryStorage()
+            return storage.url(obj.image.name)
         return None
-
-    def create(self, validated_data):
-        # Django and Cloudinary storage will handle the image automatically
-        # when you save the model instance
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        # Django and Cloudinary storage will handle the image automatically
-        return super().update(instance, validated_data)
 
 # ----------------------------
 # Category Serializer
@@ -118,7 +103,20 @@ class HireItemSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         if obj.image:
-            return obj.image.url
+            # Directly construct Cloudinary URL
+            from django.conf import settings
+            cloud_name = settings.CLOUDINARY_STORAGE['CLOUD_NAME']
+            
+            if isinstance(obj.image, str):
+                # It's a Cloudinary public_id
+                public_id = obj.image
+            else:
+                # It's a ImageFieldFile, extract the path without extension
+                import os
+                public_id = os.path.splitext(obj.image.name)[0]
+            
+            # Return full Cloudinary URL
+            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
         return None
 
 # ----------------------------

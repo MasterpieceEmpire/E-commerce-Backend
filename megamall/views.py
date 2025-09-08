@@ -97,50 +97,16 @@ import cloudinary.uploader
 import cloudinary.api
 from cloudinary import exceptions
 
-@api_view(['GET'])
-def fix_image_urls_view(request):
-    updated_count = 0
-    failed_count = 0
-    errors = []
+def cloudinary_debug(request):
+    from cloudinary_storage.storage import MediaCloudinaryStorage
+    storage = MediaCloudinaryStorage()
     
-    products_to_update = Product.objects.all().iterator()
-    
-    for product in products_to_update:
-        public_id = product.image
-        if not public_id or not isinstance(public_id, str):
-            # Skip if public_id is empty or not a string
-            failed_count += 1
-            errors.append(f"❌ Skipping product ID {product.id}: Public ID is invalid or not a string.")
-            continue
-
-        try:
-            # Get resource details from Cloudinary
-            resource = cloudinary.api.resource(public_id)
-            new_url = resource.get("secure_url")
-
-            if new_url and new_url != product.image_url:
-                product.image_url = new_url
-                product.save()
-                updated_count += 1
-
-        except exceptions.Error as e:
-            failed_count += 1
-            errors.append(f"❌ Cloudinary API error for product ID {product.id}: {e}")
-        except Exception as e:
-            failed_count += 1
-            errors.append(f"❌ An unexpected error occurred for product ID {product.id}: {e}")
-
-    response_data = {
-        "message": "Migration complete.",
-        "updated_count": updated_count,
-        "failed_count": failed_count,
-        "errors": errors
-    }
-    
-    if failed_count > 0:
-        return Response(response_data, status=500)
-    else:
-        return Response(response_data, status=200)
+    return JsonResponse({
+        'cloudinary_configured': hasattr(settings, 'CLOUDINARY_STORAGE'),
+        'default_storage': settings.DEFAULT_FILE_STORAGE,
+        'storage_class': str(storage.__class__),
+        'can_access_cloudinary': True  # This will error if Cloudinary isn't configured
+    })
 
 class NoSignalLoginView(LoginView):
     """
