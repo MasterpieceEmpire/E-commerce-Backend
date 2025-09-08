@@ -5,6 +5,8 @@ from django.contrib.auth.hashers import make_password
 from .models import Product, Category, GuestUser, ShippingAddress, Order, OrderItem, CourierOrder, HireItem
 import cloudinary.uploader
 import cloudinary
+import os
+from django.conf import settings
 
 # ----------------------------
 # Product Serializer
@@ -18,26 +20,18 @@ class ProductSerializer(serializers.ModelSerializer):
     
     def get_image_url(self, obj):
         if obj.image:
-            # Use Cloudinary's URL method directly
-            try:
-                from cloudinary_storage.storage import MediaCloudinaryStorage
-                storage = MediaCloudinaryStorage()
-                return storage.url(obj.image.name)
-            except Exception:
-                # Fallback: construct Cloudinary URL manually
-                from django.conf import settings
-                cloud_name = settings.CLOUDINARY_STORAGE['CLOUD_NAME']
-                
-                if isinstance(obj.image, str):
-                    public_id = obj.image
-                else:
-                    public_id = obj.image.name
-                
-                # Remove file extension for Cloudinary public_id
-                import os
-                public_id = os.path.splitext(public_id)[0]
-                
-                return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
+            # Simple Cloudinary URL construction
+            cloud_name = settings.CLOUDINARY_STORAGE['CLOUD_NAME']
+            
+            if isinstance(obj.image, str):
+                public_id = obj.image
+            else:
+                public_id = obj.image.name
+            
+            # Remove file extension for Cloudinary public_id
+            public_id = os.path.splitext(public_id)[0]
+            
+            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
         return None
 
 # ----------------------------
@@ -95,23 +89,16 @@ class OrderItemSerializer(serializers.ModelSerializer):
     def get_product_image_url(self, obj):
         if obj.product and obj.product.image:
             # Use the same logic as ProductSerializer
-            try:
-                from cloudinary_storage.storage import MediaCloudinaryStorage
-                storage = MediaCloudinaryStorage()
-                return storage.url(obj.product.image.name)
-            except Exception:
-                from django.conf import settings
-                cloud_name = settings.CLOUDINARY_STORAGE['CLOUD_NAME']
-                
-                if isinstance(obj.product.image, str):
-                    public_id = obj.product.image
-                else:
-                    public_id = obj.product.image.name
-                
-                import os
-                public_id = os.path.splitext(public_id)[0]
-                
-                return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
+            cloud_name = settings.CLOUDINARY_STORAGE['CLOUD_NAME']
+            
+            if isinstance(obj.product.image, str):
+                public_id = obj.product.image
+            else:
+                public_id = obj.product.image.name
+            
+            public_id = os.path.splitext(public_id)[0]
+            
+            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
         return None
 
 # ----------------------------
@@ -142,23 +129,16 @@ class HireItemSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         if obj.image:
             # Use the same logic as ProductSerializer
-            try:
-                from cloudinary_storage.storage import MediaCloudinaryStorage
-                storage = MediaCloudinaryStorage()
-                return storage.url(obj.image.name)
-            except Exception:
-                from django.conf import settings
-                cloud_name = settings.CLOUDINARY_STORAGE['CLOUD_NAME']
-                
-                if isinstance(obj.image, str):
-                    public_id = obj.image
-                else:
-                    public_id = obj.image.name
-                
-                import os
-                public_id = os.path.splitext(public_id)[0]
-                
-                return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
+            cloud_name = settings.CLOUDINARY_STORAGE['CLOUD_NAME']
+            
+            if isinstance(obj.image, str):
+                public_id = obj.image
+            else:
+                public_id = obj.image.name
+            
+            public_id = os.path.splitext(public_id)[0]
+            
+            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
         return None
 
 # ----------------------------
