@@ -1,3 +1,5 @@
+# urls.py
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -33,37 +35,43 @@ router.register(r'hire-items', HireItemViewSet, basename='hireitem')
 router.register(r'shipping-addresses', ShippingAddressViewSet, basename='shippingaddress')
 
 # URL Patterns
+api_urlpatterns = [
+    # API Base Routes from DRF router
+    path('', include(router.urls)),
+
+    # Authentication
+    path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+    # User
+    path('user-profile/', user_profile, name='user-profile'),
+
+    # Orders
+    path('orders/', create_order, name='create-order'),
+    path('orders/<uuid:order_id>/status/', get_order_status, name='order-status'),
+    path('orders/<uuid:order_id>/invoice/', invoice_pdf_view, name='invoice-pdf'),
+
+    # M-Pesa
+    path('payment/mpesa/initiate/', initiate_payment, name='initiate-payment'),
+
+    # Courier
+    path('courier/', create_courier_order, name='create-courier-order'),
+
+    # Fix urls command
+    path('fix-urls/', fix_image_urls_view, name='fix_urls'),
+]
+
+
 urlpatterns = [
     # Redirect root to API base
     path('', RedirectView.as_view(url='/api/', permanent=False)),
 
-    # ✅ Custom Admin Login BEFORE default admin
+    # Custom Admin Login BEFORE default admin
     path('admin/login/', NoSignalLoginView.as_view(), name='login'),
     path('admin/', admin.site.urls),
-
-    # API Base Routes from DRF router
-    path('api/', include(router.urls)),
-
-    # Authentication
-    path('api/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-
-    # User
-    path('api/user-profile/', user_profile, name='user-profile'),
-
-    # Orders
-    path('api/orders/', create_order, name='create-order'),
-    path('api/orders/<uuid:order_id>/status/', get_order_status, name='order-status'),
-    path('api/orders/<uuid:order_id>/invoice/', invoice_pdf_view, name='invoice-pdf'),
-
-    # M-Pesa
-    path('api/payment/mpesa/initiate/', initiate_payment, name='initiate-payment'),
-
-    # Courier
-    path('api/courier/', create_courier_order, name='create-courier-order'),
-
-    # Fix urls command
-    path('fix-urls/', fix_image_urls_view, name='fix_urls'),
+    
+    # API URLs
+    path('api/', include(api_urlpatterns)),
 ]
 
 # Static/media handling for development
