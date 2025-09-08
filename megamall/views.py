@@ -95,6 +95,7 @@ from django.contrib.auth import login
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+from cloudinary import exceptions
 
 @api_view(['GET'])
 def fix_image_urls_view(request):
