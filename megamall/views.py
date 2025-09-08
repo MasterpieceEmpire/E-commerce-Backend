@@ -157,17 +157,14 @@ class NoSignalLoginView(LoginView):
 
 
 
-class ProductView(viewsets.ModelViewSet):
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
-    def get_queryset(self):
-        category_slug = self.request.query_params.get("category")
-        if category_slug:
-            return Product.objects.filter(category__slug=category_slug)
-        return Product.objects.all()
-
     def get_serializer_context(self):
-        return {'request': self.request}
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 
 class CategoryView(viewsets.ModelViewSet):
@@ -221,7 +218,9 @@ class HireItemViewSet(viewsets.ModelViewSet):
     serializer_class = HireItemSerializer
 
     def get_serializer_context(self):
-        return {'request': self.request}
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 
 

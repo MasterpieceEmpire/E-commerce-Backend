@@ -15,20 +15,16 @@ class ProductSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(),
         slug_field='name'
     )
-    # New: Add a read-only field for the image URL
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        # Include `image` for write operations and `image_url` for read operations
         fields = ['id', 'name', 'price', 'description', 'category', 'image', 'image_url']
         extra_kwargs = {
-            # This is crucial: Hides `image` field from API responses
             'image': {'write_only': True}
         }
     
     def get_image_url(self, obj):
-        # This method automatically gets the URL from the Cloudinary-backed field
         if obj.image and hasattr(obj.image, 'url'):
             return obj.image.url
         return None
@@ -78,12 +74,17 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # ----------------------------
 class OrderItemSerializer(serializers.ModelSerializer):
     product = serializers.StringRelatedField()
-    product_image_url = serializers.ReadOnlyField(source='product.image.url')
+    product_image_url = serializers.SerializerMethodField() # Use SerializerMethodField
 
     class Meta:
         model = OrderItem
         fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
         read_only_fields = ['id']
+
+    def get_product_image_url(self, obj):
+        if obj.product and obj.product.image and hasattr(obj.product.image, 'url'):
+            return obj.product.image.url
+        return None
 
 # ----------------------------
 # Order Serializer
@@ -101,20 +102,16 @@ class OrderSerializer(serializers.ModelSerializer):
 # HireItem Serializer
 # ----------------------------
 class HireItemSerializer(serializers.ModelSerializer):
-    # This field will get the full URL from the Cloudinary-backed ImageField
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = HireItem
-        # Keep `image` for uploads and `image_url` for display
         fields = ['id', 'name', 'hire_price_per_day', 'hire_price_per_hour', 'image', 'image_url', 'details']
         extra_kwargs = {
-            # Hides the `image` field from the API response
             'image': {'write_only': True}
         }
 
     def get_image_url(self, obj):
-        # This is all you need; the `image` field's `.url` property handles the rest
         if obj.image and hasattr(obj.image, 'url'):
             return obj.image.url
         return None
