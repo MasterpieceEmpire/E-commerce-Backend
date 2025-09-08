@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.hashers import make_password
 from .models import Product, Category, GuestUser, ShippingAddress, Order, OrderItem, CourierOrder, HireItem
+import cloudinary.uploader
+import cloudinary
 
 # ----------------------------
 # Product Serializer
@@ -13,30 +15,64 @@ class ProductSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(),
         slug_field='name'
     )
-    image_url = serializers.SerializerMethodField()  
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = ['id', 'name', 'price', 'image', 'image_url', 'description', 'category']
-
+        extra_kwargs = {
+            'image': {'write_only': True}  # Hide this field on read
+        }
+    
     def get_image_url(self, obj):
-        request = self.context.get('request')  
+        request = self.context.get('request')
         if obj.image and hasattr(obj.image, 'url'):
             return request.build_absolute_uri(obj.image.url)
         return None
+
+    def create(self, validated_data):
+        image_file = validated_data.pop('image', None)
+        if image_file:
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    image_file,
+                    folder="products",
+                    unique_filename=True,
+                    resource_type="image"
+                )
+                validated_data['image'] = upload_result.get('public_id')
+                validated_data['image_url'] = upload_result.get('secure_url')
+            except Exception as e:
+                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        image_file = validated_data.pop('image', None)
+        if image_file:
+            # Delete old image from Cloudinary if it exists
+            if instance.image:
+                cloudinary.uploader.destroy(instance.image)
+            
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    image_file,
+                    folder="products",
+                    unique_filename=True,
+                    resource_type="image"
+                )
+                validated_data['image'] = upload_result.get('public_id')
+                validated_data['image_url'] = upload_result.get('secure_url')
+            except Exception as e:
+                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
+        return super().update(instance, validated_data)
 
 # ----------------------------
 # Category Serializer
 # ----------------------------
 class CategorySerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
-
     class Meta:
         model = Category
         fields = '__all__'
-
-    def get_id(self, obj):
-        return str(obj.id)
 
 # ----------------------------
 # GuestUser Serializer
@@ -48,19 +84,13 @@ class GuestUserSerializer(serializers.ModelSerializer):
         model = GuestUser
         fields = ["id", "email", "phone", "subscribed", "is_active"]
 
-
 # ----------------------------
 # Shipping Address Serializer
 # ----------------------------
 class ShippingAddressSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
-
     class Meta:
         model = ShippingAddress
         fields = '__all__'
-
-    def get_id(self, obj):
-        return str(obj.id)
 
 # ----------------------------
 # Token Serializer
@@ -78,42 +108,38 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # Order Item Serializer
 # ----------------------------
 class OrderItemSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
     product = serializers.StringRelatedField()
     product_image_url = serializers.ReadOnlyField(source='product.image.url')
 
     class Meta:
         model = OrderItem
         fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
-
-    def get_id(self, obj):
-        return str(obj.id)
+        read_only_fields = ['id']
 
 # ----------------------------
 # Order Serializer
 # ----------------------------
 class OrderSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
     order_items = OrderItemSerializer(many=True, read_only=True)
     shipping_address = ShippingAddressSerializer(read_only=True)
 
     class Meta:
         model = Order
         fields = ['id', 'shipping_address', 'guest_user', 'payment_method', 'total_price', 'status', 'created_at', 'order_items']
-
-    def get_id(self, obj):
-        return str(obj.id)
+        read_only_fields = ['id']
 
 # ----------------------------
 # HireItem Serializer
 # ----------------------------
 class HireItemSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
-    image_url = serializers.SerializerMethodField()  # ✅ add this
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = HireItem
         fields = ['id', 'name', 'hire_price_per_day', 'hire_price_per_hour', 'image', 'image_url', 'details']
+        extra_kwargs = {
+            'image': {'write_only': True}
+        }
 
     def get_image_url(self, obj):
         request = self.context.get('request')
@@ -121,11 +147,46 @@ class HireItemSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.image.url)
         return None
 
+    def create(self, validated_data):
+        image_file = validated_data.pop('image', None)
+        if image_file:
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    image_file,
+                    folder="hire_items",
+                    unique_filename=True,
+                    resource_type="image"
+                )
+                validated_data['image'] = upload_result.get('public_id')
+                validated_data['image_url'] = upload_result.get('secure_url')
+            except Exception as e:
+                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        image_file = validated_data.pop('image', None)
+        if image_file:
+            if instance.image:
+                cloudinary.uploader.destroy(instance.image)
+            
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    image_file,
+                    folder="hire_items",
+                    unique_filename=True,
+                    resource_type="image"
+                )
+                validated_data['image'] = upload_result.get('public_id')
+                validated_data['image_url'] = upload_result.get('secure_url')
+            except Exception as e:
+                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
+        return super().update(instance, validated_data)
+
 # ----------------------------
 # Courier Order Serializer
 # ----------------------------
 class CourierOrderSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
+    id = serializers.CharField(read_only=True) # Use CharField for string representation of ObjectId
     parcel_action = serializers.ChoiceField(
         choices=[("send", "send"), ("receive", "receive")],
         required=False,
@@ -140,9 +201,6 @@ class CourierOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourierOrder
         fields = '__all__'
-
-    def get_id(self, obj):
-        return str(obj.id)
 
     def validate(self, data):
         if 'parcel_action' in data:
