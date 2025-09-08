@@ -27,7 +27,6 @@ ALLOWED_HOSTS = ["*"]  # ⚠️ Change in production (add domain or IP)
 INSTALLED_APPS = [
     'cloudinary',
     'cloudinary_storage',
-    'storages',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,6 +46,7 @@ AUTH_USER_MODEL = "megamall.GuestUser"
 # MIDDLEWARE
 # -------------------------------------------------------------------
 MIDDLEWARE = [
+    'cloudinary_storage.middleware.MediaMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'megamall.middleware.EarlyPatchMiddleware',
@@ -140,8 +140,6 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # -------------------------------------------------------------------
 # DEFAULT PRIMARY KEY FIELD
