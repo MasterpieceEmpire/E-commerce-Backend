@@ -9,29 +9,9 @@ from django.conf import settings
 # Product Serializer
 # ----------------------------
 class ProductSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
-    
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'image', 'image_url', 'description', 'category']
-    
-    def get_image_url(self, obj):
-        if obj.image:
-            # Simple Cloudinary URL construction - avoid complex logic
-            cloud_name = getattr(settings, 'CLOUDINARY_STORAGE', {}).get('CLOUD_NAME', '')
-            if not cloud_name:
-                return None
-                
-            if hasattr(obj.image, 'name'):
-                public_id = obj.image.name
-            elif isinstance(obj.image, str):
-                public_id = obj.image
-            else:
-                return None
-            
-            # Basic URL construction
-            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
-        return None
+        fields = ['id', 'name', 'price', 'image', 'description', 'category']  # Remove image fields
 
 # ----------------------------
 # Category Serializer
@@ -102,32 +82,9 @@ class OrderSerializer(serializers.ModelSerializer):
 # HireItem Serializer
 # ----------------------------
 class HireItemSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
-
     class Meta:
         model = HireItem
-        fields = ['id', 'name', 'hire_price_per_day', 'hire_price_per_hour', 'image', 'image_url', 'details']
-        extra_kwargs = {
-            'image': {'write_only': True}
-        }
-
-    def get_image_url(self, obj):
-        if obj.image:
-            # Simple Cloudinary URL construction - avoid complex logic
-            cloud_name = getattr(settings, 'CLOUDINARY_STORAGE', {}).get('CLOUD_NAME', '')
-            if not cloud_name:
-                return None
-                
-            if hasattr(obj.image, 'name'):
-                public_id = obj.image.name
-            elif isinstance(obj.image, str):
-                public_id = obj.image
-            else:
-                return None
-            
-            # Basic URL construction
-            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
-        return None
+        fields = ['id', 'name', 'hire_price_per_day', 'hire_price_per_hour', 'image', 'details']
 
 # ----------------------------
 # Courier Order Serializer
