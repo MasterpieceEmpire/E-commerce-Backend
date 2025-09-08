@@ -21,6 +21,7 @@ from megamall.views import (
     initiate_payment,
     create_courier_order,
     NoSignalLoginView,
+    fix_image_urls_view,
 )
 
 # DRF Router (only for ViewSets)
