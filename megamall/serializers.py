@@ -1,10 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from django.contrib.auth.hashers import make_password
 from .models import Product, Category, GuestUser, ShippingAddress, Order, OrderItem, CourierOrder, HireItem
-import cloudinary.uploader
-import cloudinary
 import os
 from django.conf import settings
 
@@ -20,17 +17,19 @@ class ProductSerializer(serializers.ModelSerializer):
     
     def get_image_url(self, obj):
         if obj.image:
-            # Simple Cloudinary URL construction
-            cloud_name = settings.CLOUDINARY_STORAGE['CLOUD_NAME']
-            
-            if isinstance(obj.image, str):
+            # Simple Cloudinary URL construction - avoid complex logic
+            cloud_name = getattr(settings, 'CLOUDINARY_STORAGE', {}).get('CLOUD_NAME', '')
+            if not cloud_name:
+                return None
+                
+            if hasattr(obj.image, 'name'):
+                public_id = obj.image.name
+            elif isinstance(obj.image, str):
                 public_id = obj.image
             else:
-                public_id = obj.image.name
+                return None
             
-            # Remove file extension for Cloudinary public_id
-            public_id = os.path.splitext(public_id)[0]
-            
+            # Basic URL construction
             return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
         return None
 
@@ -79,27 +78,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # ----------------------------
 class OrderItemSerializer(serializers.ModelSerializer):
     product = serializers.StringRelatedField()
-    product_image_url = serializers.SerializerMethodField()
+    # Remove product_image_url temporarily to reduce memory usage
+    # product_image_url = serializers.ReadOnlyField(source='product.image.url')
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
+        fields = ['id', 'product', 'quantity', 'price']
         read_only_fields = ['id']
-
-    def get_product_image_url(self, obj):
-        if obj.product and obj.product.image:
-            # Use the same logic as ProductSerializer
-            cloud_name = settings.CLOUDINARY_STORAGE['CLOUD_NAME']
-            
-            if isinstance(obj.product.image, str):
-                public_id = obj.product.image
-            else:
-                public_id = obj.product.image.name
-            
-            public_id = os.path.splitext(public_id)[0]
-            
-            return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
-        return None
 
 # ----------------------------
 # Order Serializer
@@ -128,16 +113,19 @@ class HireItemSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         if obj.image:
-            # Use the same logic as ProductSerializer
-            cloud_name = settings.CLOUDINARY_STORAGE['CLOUD_NAME']
-            
-            if isinstance(obj.image, str):
+            # Simple Cloudinary URL construction - avoid complex logic
+            cloud_name = getattr(settings, 'CLOUDINARY_STORAGE', {}).get('CLOUD_NAME', '')
+            if not cloud_name:
+                return None
+                
+            if hasattr(obj.image, 'name'):
+                public_id = obj.image.name
+            elif isinstance(obj.image, str):
                 public_id = obj.image
             else:
-                public_id = obj.image.name
+                return None
             
-            public_id = os.path.splitext(public_id)[0]
-            
+            # Basic URL construction
             return f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}"
         return None
 
