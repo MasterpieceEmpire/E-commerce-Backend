@@ -103,40 +103,44 @@ def fix_image_urls_view(request):
     failed_count = 0
     errors = []
     
-    try:
-        products_to_update = Product.objects.all().iterator()
-        
-        for product in products_to_update:
-            public_id = product.image
-            if not public_id:
-                continue
+    products_to_update = Product.objects.all().iterator()
+    
+    for product in products_to_update:
+        public_id = product.image
+        if not public_id or not isinstance(public_id, str):
+            # Skip if public_id is empty or not a string
+            failed_count += 1
+            errors.append(f"❌ Skipping product ID {product.id}: Public ID is invalid or not a string.")
+            continue
 
-            try:
-                # Get resource details from Cloudinary
-                resource = cloudinary.api.resource(public_id)
-                new_url = resource.get("secure_url")
+        try:
+            # Get resource details from Cloudinary
+            resource = cloudinary.api.resource(public_id)
+            new_url = resource.get("secure_url")
 
-                if new_url and new_url != product.image_url:
-                    product.image_url = new_url
-                    product.save()
-                    updated_count += 1
+            if new_url and new_url != product.image_url:
+                product.image_url = new_url
+                product.save()
+                updated_count += 1
 
-            except cloudinary.exceptions.Error as e:  # <-- Corrected line
-                failed_count += 1
-                errors.append(f"❌ Cloudinary API error for product ID {product.id}: {e}")
-            except Exception as e:
-                failed_count += 1
-                errors.append(f"❌ An unexpected error occurred for product ID {product.id}: {e}")
-                
-    except Exception as e:
-        return Response({"message": "Script failed to run.", "error": str(e)}, status=500)
+        except exceptions.Error as e:
+            failed_count += 1
+            errors.append(f"❌ Cloudinary API error for product ID {product.id}: {e}")
+        except Exception as e:
+            failed_count += 1
+            errors.append(f"❌ An unexpected error occurred for product ID {product.id}: {e}")
 
-    return Response({
+    response_data = {
         "message": "Migration complete.",
         "updated_count": updated_count,
         "failed_count": failed_count,
         "errors": errors
-    })
+    }
+    
+    if failed_count > 0:
+        return Response(response_data, status=500)
+    else:
+        return Response(response_data, status=200)
 
 class NoSignalLoginView(LoginView):
     """
