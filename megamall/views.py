@@ -99,16 +99,16 @@ import cloudinary.api
 def fix_image_urls_view(request):
     updated_count = 0
     failed_count = 0
+    errors = []
 
-    products_to_update = Product.objects.all()
-
-    if not products_to_update:
-        return Response({"message": "No products found to update."})
+    # Use iterator() to process objects one at a time, minimizing memory usage
+    products_to_update = Product.objects.all().iterator()
 
     for product in products_to_update:
-        public_id = product.image  # The public ID is stored in the 'image' field
+        public_id = product.image
         
         if not public_id:
+            logger.warning(f"Skipping product with no public_id: {product.id}")
             continue
 
         try:
@@ -116,21 +116,31 @@ def fix_image_urls_view(request):
             resource = cloudinary.api.resource(public_id)
             new_url = resource['secure_url']
             
-            # Update the URL if it's different
+            # Check if the URL has changed before updating
             if product.image_url != new_url:
                 product.image_url = new_url
                 product.save()
                 updated_count += 1
+                logger.info(f"✅ Updated URL for product: {product.name} ({product.id})")
+            else:
+                logger.info(f"➡️ URL for product: {product.name} ({product.id}) is already correct.")
 
         except cloudinary.api.NotFound:
             failed_count += 1
+            error_msg = f'❌ Cloudinary resource not found for public_id: {public_id}'
+            logger.error(error_msg)
+            errors.append(error_msg)
         except Exception as e:
             failed_count += 1
+            error_msg = f'❌ An unexpected error occurred for product ID {product.id}: {e}'
+            logger.error(error_msg)
+            errors.append(error_msg)
 
     return Response({
         "message": "Migration complete.",
         "updated_count": updated_count,
-        "failed_count": failed_count
+        "failed_count": failed_count,
+        "errors": errors
     })
 
 class NoSignalLoginView(LoginView):
