@@ -21,6 +21,7 @@ from sendgrid.helpers.mail import (
 import certifi
 import ssl
 import urllib.request
+import cloudinary.uploader
 
 from io import BytesIO
 from django.shortcuts import get_object_or_404
@@ -109,16 +110,56 @@ class NoSignalLoginView(LoginView):
 
 
 class ProductView(viewsets.ModelViewSet):
+    """
+    A viewset for managing products.
+    """
     serializer_class = ProductSerializer
 
     def get_queryset(self):
+        """
+        Optionally filters the queryset by category.
+        """
         category_slug = self.request.query_params.get("category")
         if category_slug:
             return Product.objects.filter(category__slug=category_slug)
         return Product.objects.all()
 
     def get_serializer_context(self):
+        """
+        Adds the request to the serializer context.
+        """
         return {'request': self.request}
+
+    def create(self, request, *args, **kwargs):
+        """
+        Handles product creation with image upload to Cloudinary.
+        """
+        image_file = request.FILES.get('image')
+
+        if image_file:
+            try:
+                # Upload to Cloudinary
+                upload_result = cloudinary.uploader.upload(
+                    image_file,
+                    folder="products",
+                    use_filename=True,
+                    unique_filename=True
+                )
+
+                # Add Cloudinary data to request data
+                # We need to make the QueryDict mutable to modify it
+                request.data._mutable = True
+                request.data['image'] = f"image/upload/{upload_result['public_id']}"
+                request.data['image_url'] = upload_result['secure_url']
+                request.data._mutable = False
+
+            except Exception as e:
+                return Response(
+                    {"error": f"Image upload failed: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        return super().create(request, *args, **kwargs)
 
 
 class CategoryView(viewsets.ModelViewSet):
