@@ -15,10 +15,23 @@ class ProductSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(),
         slug_field='name'
     )
+    # New: Add a read-only field for the image URL
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'image', 'description', 'category']
+        # Include `image` for write operations and `image_url` for read operations
+        fields = ['id', 'name', 'price', 'description', 'category', 'image', 'image_url']
+        extra_kwargs = {
+            # This is crucial: Hides `image` field from API responses
+            'image': {'write_only': True}
+        }
+    
+    def get_image_url(self, obj):
+        # This method automatically gets the URL from the Cloudinary-backed field
+        if obj.image and hasattr(obj.image, 'url'):
+            return obj.image.url
+        return None
 
 # ----------------------------
 # Category Serializer
@@ -88,55 +101,23 @@ class OrderSerializer(serializers.ModelSerializer):
 # HireItem Serializer
 # ----------------------------
 class HireItemSerializer(serializers.ModelSerializer):
+    # This field will get the full URL from the Cloudinary-backed ImageField
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = HireItem
+        # Keep `image` for uploads and `image_url` for display
         fields = ['id', 'name', 'hire_price_per_day', 'hire_price_per_hour', 'image', 'image_url', 'details']
         extra_kwargs = {
+            # Hides the `image` field from the API response
             'image': {'write_only': True}
         }
 
     def get_image_url(self, obj):
-        request = self.context.get('request')
+        # This is all you need; the `image` field's `.url` property handles the rest
         if obj.image and hasattr(obj.image, 'url'):
-            return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
         return None
-
-    def create(self, validated_data):
-        image_file = validated_data.pop('image', None)
-        if image_file:
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    image_file,
-                    folder="hire_items",
-                    unique_filename=True,
-                    resource_type="image"
-                )
-                validated_data['image'] = upload_result.get('public_id')
-                validated_data['image_url'] = upload_result.get('secure_url')
-            except Exception as e:
-                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        image_file = validated_data.pop('image', None)
-        if image_file:
-            if instance.image:
-                cloudinary.uploader.destroy(instance.image)
-            
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    image_file,
-                    folder="hire_items",
-                    unique_filename=True,
-                    resource_type="image"
-                )
-                validated_data['image'] = upload_result.get('public_id')
-                validated_data['image_url'] = upload_result.get('secure_url')
-            except Exception as e:
-                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
-        return super().update(instance, validated_data)
 
 # ----------------------------
 # Courier Order Serializer
