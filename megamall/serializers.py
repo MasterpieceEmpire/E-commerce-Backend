@@ -15,10 +15,16 @@ class ProductSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(),
         slug_field='name'
     )
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'image', 'description', 'category']
+        fields = ['id', 'name', 'price', 'image', 'image_url', 'description', 'category']
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
 
 # ----------------------------
 # Category Serializer
