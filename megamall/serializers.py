@@ -1,5 +1,4 @@
 from rest_framework import serializers
-import cloudinary.uploader
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.hashers import make_password
@@ -14,64 +13,17 @@ class ProductSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(),
         slug_field='name'
     )
-    image_url = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()  
 
     class Meta:
         model = Product
         fields = ['id', 'name', 'price', 'image', 'image_url', 'description', 'category']
-    
+
     def get_image_url(self, obj):
-        request = self.context.get('request')
-        # Check if the product has an image and if it has a URL
+        request = self.context.get('request')  
         if obj.image and hasattr(obj.image, 'url'):
-            # Return the absolute URL of the image
             return request.build_absolute_uri(obj.image.url)
         return None
-
-    def create(self, validated_data):
-        # Handle image upload to Cloudinary before saving
-        image_file = validated_data.pop('image', None)
-        
-        if image_file:
-            try:
-                # Upload the image to Cloudinary
-                upload_result = cloudinary.uploader.upload(
-                    image_file,
-                    folder="products",
-                    use_filename=True,
-                    unique_filename=True
-                )
-                
-                # Store the public ID and secure URL in validated_data
-                validated_data['image'] = f"image/upload/{upload_result['public_id']}"
-                validated_data['image_url'] = upload_result['secure_url']
-            except Exception as e:
-                # Re-raise the exception to be handled by the view
-                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
-        
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        # Handle new image upload during an update
-        image_file = validated_data.pop('image', None)
-        
-        if image_file:
-            try:
-                # Upload the new image to Cloudinary
-                upload_result = cloudinary.uploader.upload(
-                    image_file,
-                    folder="products",
-                    use_filename=True,
-                    unique_filename=True
-                )
-                
-                # Update the instance's image fields with new Cloudinary data
-                instance.image = f"image/upload/{upload_result['public_id']}"
-                instance.image_url = upload_result['secure_url']
-            except Exception as e:
-                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
-        
-        return super().update(instance, validated_data)
 
 # ----------------------------
 # Category Serializer
