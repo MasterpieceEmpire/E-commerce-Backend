@@ -70,24 +70,11 @@ class ProductSerializer(serializers.ModelSerializer):
 # Category Serializer
 # ----------------------------
 class CategorySerializer(serializers.ModelSerializer):
-    # A SerializerMethodField is the safest way to handle this
-    product_count = serializers.SerializerMethodField()
+    id = serializers.CharField(read_only=True)
 
     class Meta:
         model = Category
-        # Ensure 'id' is listed if you want to display it
-        fields = ['id', 'name', 'product_count']
-
-    def get_product_count(self, obj):
-        # The obj is the Category instance from MongoDB.
-        # You can count related products by filtering the Product model.
-        try:
-            # Use obj.id which is the ObjectId
-            return Product.objects.filter(category=obj.id).count()
-        except Exception as e:
-            # Log the error for debugging
-            print(f"Error getting product count for category {obj.name}: {e}")
-            return 0
+        fields = ['id', 'name', 'slug']
 
 # ----------------------------
 # GuestUser Serializer
