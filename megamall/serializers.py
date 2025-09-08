@@ -1,17 +1,24 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth.hashers import make_password
 from .models import Product, Category, GuestUser, ShippingAddress, Order, OrderItem, CourierOrder, HireItem
-import os
-from django.conf import settings
+import cloudinary.uploader
+import cloudinary
 
 # ----------------------------
 # Product Serializer
 # ----------------------------
 class ProductSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(read_only=True)
+    category = serializers.SlugRelatedField(
+        queryset=Category.objects.all(),
+        slug_field='name'
+    )
+
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'image', 'description', 'category']  # Remove image fields
+        fields = ['id', 'name', 'price', 'image', 'description', 'category']
 
 # ----------------------------
 # Category Serializer
@@ -58,12 +65,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # ----------------------------
 class OrderItemSerializer(serializers.ModelSerializer):
     product = serializers.StringRelatedField()
-    # Remove product_image_url temporarily to reduce memory usage
-    # product_image_url = serializers.ReadOnlyField(source='product.image.url')
+    product_image_url = serializers.ReadOnlyField(source='product.image.url')
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'quantity', 'price']
+        fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
         read_only_fields = ['id']
 
 # ----------------------------
@@ -82,15 +88,61 @@ class OrderSerializer(serializers.ModelSerializer):
 # HireItem Serializer
 # ----------------------------
 class HireItemSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = HireItem
-        fields = ['id', 'name', 'hire_price_per_day', 'hire_price_per_hour', 'image', 'details']
+        fields = ['id', 'name', 'hire_price_per_day', 'hire_price_per_hour', 'image', 'image_url', 'details']
+        extra_kwargs = {
+            'image': {'write_only': True}
+        }
+
+    def get_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.image and hasattr(obj.image, 'url'):
+            return request.build_absolute_uri(obj.image.url)
+        return None
+
+    def create(self, validated_data):
+        image_file = validated_data.pop('image', None)
+        if image_file:
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    image_file,
+                    folder="hire_items",
+                    unique_filename=True,
+                    resource_type="image"
+                )
+                validated_data['image'] = upload_result.get('public_id')
+                validated_data['image_url'] = upload_result.get('secure_url')
+            except Exception as e:
+                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        image_file = validated_data.pop('image', None)
+        if image_file:
+            if instance.image:
+                cloudinary.uploader.destroy(instance.image)
+            
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    image_file,
+                    folder="hire_items",
+                    unique_filename=True,
+                    resource_type="image"
+                )
+                validated_data['image'] = upload_result.get('public_id')
+                validated_data['image_url'] = upload_result.get('secure_url')
+            except Exception as e:
+                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
+        return super().update(instance, validated_data)
 
 # ----------------------------
 # Courier Order Serializer
 # ----------------------------
 class CourierOrderSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
+    id = serializers.CharField(read_only=True) # Use CharField for string representation of ObjectId
     parcel_action = serializers.ChoiceField(
         choices=[("send", "send"), ("receive", "receive")],
         required=False,
