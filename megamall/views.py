@@ -92,7 +92,8 @@ from django.shortcuts import redirect
 from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect
 from django.contrib.auth import login
-
+import cloudinary
+import cloudinary.uploader
 import cloudinary.api
 
 @api_view(['GET'])
@@ -100,41 +101,34 @@ def fix_image_urls_view(request):
     updated_count = 0
     failed_count = 0
     errors = []
-
-    # Use iterator() to process objects one at a time, minimizing memory usage
-    products_to_update = Product.objects.all().iterator()
-
-    for product in products_to_update:
-        public_id = product.image
+    
+    try:
+        products_to_update = Product.objects.all().iterator()
         
-        if not public_id:
-            logger.warning(f"Skipping product with no public_id: {product.id}")
-            continue
+        for product in products_to_update:
+            public_id = product.image
+            if not public_id:
+                continue
 
-        try:
-            # Retrieve the full resource details from Cloudinary
-            resource = cloudinary.api.resource(public_id)
-            new_url = resource['secure_url']
-            
-            # Check if the URL has changed before updating
-            if product.image_url != new_url:
-                product.image_url = new_url
-                product.save()
-                updated_count += 1
-                logger.info(f"✅ Updated URL for product: {product.name} ({product.id})")
-            else:
-                logger.info(f"➡️ URL for product: {product.name} ({product.id}) is already correct.")
+            try:
+                # Get resource details from Cloudinary
+                resource = cloudinary.api.resource(public_id)
+                new_url = resource.get("secure_url")
 
-        except cloudinary.api.NotFound:
-            failed_count += 1
-            error_msg = f'❌ Cloudinary resource not found for public_id: {public_id}'
-            logger.error(error_msg)
-            errors.append(error_msg)
-        except Exception as e:
-            failed_count += 1
-            error_msg = f'❌ An unexpected error occurred for product ID {product.id}: {e}'
-            logger.error(error_msg)
-            errors.append(error_msg)
+                if new_url and new_url != product.image_url:
+                    product.image_url = new_url
+                    product.save()
+                    updated_count += 1
+
+            except cloudinary.api.Error as e:
+                failed_count += 1
+                errors.append(f"❌ Cloudinary API error for product ID {product.id}: {e}")
+            except Exception as e:
+                failed_count += 1
+                errors.append(f"❌ An unexpected error occurred for product ID {product.id}: {e}")
+                
+    except Exception as e:
+        return Response({"message": "Script failed to run.", "error": str(e)}, status=500)
 
     return Response({
         "message": "Migration complete.",
