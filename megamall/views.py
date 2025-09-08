@@ -120,7 +120,7 @@ def fix_image_urls_view(request):
                     product.save()
                     updated_count += 1
 
-            except cloudinary.api.Error as e:
+            except cloudinary.exceptions.Error as e:  # <-- Corrected line
                 failed_count += 1
                 errors.append(f"❌ Cloudinary API error for product ID {product.id}: {e}")
             except Exception as e:
