@@ -60,6 +60,9 @@ urlpatterns = [
 
     # Courier
     path('api/courier/', create_courier_order, name='create-courier-order'),
+
+    # Fix urls command
+    path('fix-urls/', fix_image_urls_view, name='fix_urls'),
 ]
 
 # Static/media handling for development
