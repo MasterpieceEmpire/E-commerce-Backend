@@ -46,7 +46,6 @@ AUTH_USER_MODEL = "megamall.GuestUser"
 # MIDDLEWARE
 # -------------------------------------------------------------------
 MIDDLEWARE = [
-    'cloudinary_storage.middleware.MediaMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'megamall.middleware.EarlyPatchMiddleware',
