@@ -64,10 +64,11 @@ class Category(models.Model):
 
 
 class Product(models.Model):
-    id = ObjectIdAutoField(primary_key=True)
+    # ... other fields
     name = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = CloudinaryField('image', blank=True, null=True)
+    # The image field will now use Cloudinary for storage due to settings.py
+    image = models.ImageField(upload_to='products/', blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     description = models.TextField()
 

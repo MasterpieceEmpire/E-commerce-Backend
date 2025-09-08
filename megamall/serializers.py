@@ -15,56 +15,10 @@ class ProductSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(),
         slug_field='name'
     )
-    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'image', 'image_url', 'description', 'category']
-        extra_kwargs = {
-            'image': {'write_only': True}  # Hide this field on read
-        }
-    
-    def get_image_url(self, obj):
-        request = self.context.get('request')
-        if obj.image and hasattr(obj.image, 'url'):
-            return request.build_absolute_uri(obj.image.url)
-        return None
-
-    def create(self, validated_data):
-        image_file = validated_data.pop('image', None)
-        if image_file:
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    image_file,
-                    folder="products",
-                    unique_filename=True,
-                    resource_type="image"
-                )
-                validated_data['image'] = upload_result.get('public_id')
-                validated_data['image_url'] = upload_result.get('secure_url')
-            except Exception as e:
-                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        image_file = validated_data.pop('image', None)
-        if image_file:
-            # Delete old image from Cloudinary if it exists
-            if instance.image:
-                cloudinary.uploader.destroy(instance.image)
-            
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    image_file,
-                    folder="products",
-                    unique_filename=True,
-                    resource_type="image"
-                )
-                validated_data['image'] = upload_result.get('public_id')
-                validated_data['image_url'] = upload_result.get('secure_url')
-            except Exception as e:
-                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
-        return super().update(instance, validated_data)
+        fields = ['id', 'name', 'price', 'image', 'description', 'category']
 
 # ----------------------------
 # Category Serializer
