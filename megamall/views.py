@@ -93,6 +93,46 @@ from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect
 from django.contrib.auth import login
 
+import cloudinary.api
+
+@api_view(['GET'])
+def fix_image_urls_view(request):
+    updated_count = 0
+    failed_count = 0
+
+    products_to_update = Product.objects.all()
+
+    if not products_to_update:
+        return Response({"message": "No products found to update."})
+
+    for product in products_to_update:
+        public_id = product.image  # The public ID is stored in the 'image' field
+        
+        if not public_id:
+            continue
+
+        try:
+            # Retrieve the full resource details from Cloudinary
+            resource = cloudinary.api.resource(public_id)
+            new_url = resource['secure_url']
+            
+            # Update the URL if it's different
+            if product.image_url != new_url:
+                product.image_url = new_url
+                product.save()
+                updated_count += 1
+
+        except cloudinary.api.NotFound:
+            failed_count += 1
+        except Exception as e:
+            failed_count += 1
+
+    return Response({
+        "message": "Migration complete.",
+        "updated_count": updated_count,
+        "failed_count": failed_count
+    })
+
 class NoSignalLoginView(LoginView):
     """
     Custom admin login view that skips updating last_login
