@@ -113,28 +113,16 @@ class ShippingAddress(models.Model):
 
 
 class Order(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    guest_user = models.ForeignKey(
-        GuestUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders'
-    )
-    shipping_address = models.ForeignKey(
-        ShippingAddress, on_delete=models.SET_NULL, null=True, blank=True
-    )
+    id = ObjectIdAutoField(primary_key=True)
+    guest_user = models.ForeignKey(GuestUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    shipping_address = models.ForeignKey(ShippingAddress, on_delete=models.SET_NULL, null=True, blank=True)
     payment_method = models.CharField(max_length=100, blank=True, null=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=50, default='pending')  # pending, initiated, paid, failed
+    status = models.CharField(max_length=50, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return str(self.id)
-
-    def get_invoice_context(self):
-        return {
-            "order": self,
-            "items": self.order_items.all(),
-            "guest_user": self.guest_user,
-            "shipping": self.shipping_address,
-        }
 
 
 class OrderItem(models.Model):
