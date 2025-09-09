@@ -25,6 +25,7 @@ from django.utils.html import strip_tags
 from django.views.decorators.csrf import csrf_exempt
 
 # Third-party packages
+from pymongo import MongoClient
 import certifi
 import cloudinary
 import cloudinary.api
@@ -82,7 +83,6 @@ urllib.request.install_opener(
 
 logger = logging.getLogger(__name__)
 
-# views.py - update your test_mongo_connection function
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def test_mongo_connection(request):
@@ -102,7 +102,28 @@ def test_mongo_connection(request):
             connectTimeoutMS=10000
         )
         
-        # ... rest of the code
+        # Test the connection
+        client.admin.command('ping')
+        
+        # Get database info
+        db = client[MONGO_DB_NAME]
+        collections = db.list_collection_names()
+        
+        return Response({
+            "status": "success",
+            "message": "MongoDB connection successful",
+            "database": MONGO_DB_NAME,
+            "collections": collections,
+            "collections_count": len(collections)
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"MongoDB connection failed: {str(e)}")
+        return Response({
+            "status": "error",
+            "message": f"MongoDB connection failed: {str(e)}",
+            "uri_used": MONGO_URI if 'MONGO_URI' in locals() else "Not found"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
