@@ -14,8 +14,9 @@ from cloudinary.utils import cloudinary_url
 # Base Serializer with ObjectId handling
 # ----------------------------
 class BaseMongoDBSerializer(serializers.ModelSerializer):
-    id = ObjectIdField(read_only=True)
-    
+    # Force `id` to be returned as string instead of int
+    id = serializers.CharField(read_only=True)
+
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         # Ensure all ObjectId fields are converted to strings
@@ -25,7 +26,7 @@ class BaseMongoDBSerializer(serializers.ModelSerializer):
         return representation
 
 # ----------------------------
-# Product Serializer
+# Product & HireItem Serializers (with Cloudinary support)
 # ----------------------------
 class BaseCloudinarySerializer(BaseMongoDBSerializer):
     image = serializers.ImageField(write_only=True, required=False)
@@ -68,6 +69,7 @@ class ProductSerializer(BaseCloudinarySerializer):
         cloudinary_folder = "products"
         fields = '__all__'
 
+
 class HireItemSerializer(BaseCloudinarySerializer):
     class Meta(BaseCloudinarySerializer.Meta):
         model = HireItem
@@ -91,9 +93,10 @@ class GuestUserSerializer(BaseMongoDBSerializer):
         fields = ['id', 'first_name', 'last_name', 'email', 'phone', 'is_active', 'subscribed']
 
 # ----------------------------
-# megamall/serializers.py
+# Shipping Address Serializer
+# ----------------------------
 class ShippingAddressSerializer(BaseMongoDBSerializer):
-    guest_user = ObjectIdField(required=False)
+    guest_user = serializers.CharField(required=False)
 
     class Meta:
         model = ShippingAddress
@@ -105,9 +108,8 @@ class ShippingAddressSerializer(BaseMongoDBSerializer):
         read_only_fields = ['created_at']
 
     def create(self, validated_data):
-        # Auto-set guest_user from request if not provided
         if 'guest_user' not in validated_data and hasattr(self.context.get('request'), 'user'):
-            validated_data['guest_user'] = self.context['request'].user
+            validated_data['guest_user'] = str(self.context['request'].user.id)
         return super().create(validated_data)
 
 # ----------------------------
@@ -126,6 +128,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # Order Item Serializer
 # ----------------------------
 class OrderItemSerializer(BaseMongoDBSerializer):
+    id = serializers.CharField(read_only=True)
     product = serializers.StringRelatedField()
     product_image_url = serializers.ReadOnlyField(source='product.image_url')
 
@@ -136,9 +139,9 @@ class OrderItemSerializer(BaseMongoDBSerializer):
 # ----------------------------
 # Order Serializer
 # ----------------------------
-# megamall/serializers.py
 class OrderSerializer(BaseMongoDBSerializer):
-    guest_user = GuestUserSerializer(read_only=True)  # Use serializer instead of ObjectIdField
+    id = serializers.CharField(read_only=True)
+    guest_user = GuestUserSerializer(read_only=True)
     shipping_address = ShippingAddressSerializer(read_only=True)
     order_items = OrderItemSerializer(many=True, read_only=True)
 
@@ -153,6 +156,7 @@ class OrderSerializer(BaseMongoDBSerializer):
 # Courier Order Serializer
 # ----------------------------
 class CourierOrderSerializer(BaseMongoDBSerializer):
+    id = serializers.CharField(read_only=True)
     parcel_action = serializers.ChoiceField(
         choices=[("send", "send"), ("receive", "receive")],
         required=False,
