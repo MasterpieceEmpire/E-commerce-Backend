@@ -27,7 +27,6 @@ ALLOWED_HOSTS = ["*"]  # ⚠️ Change in production (add domain or IP)
 INSTALLED_APPS = [
     'cloudinary',
     'cloudinary_storage',
-    'storages',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -140,8 +139,6 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # -------------------------------------------------------------------
 # DEFAULT PRIMARY KEY FIELD

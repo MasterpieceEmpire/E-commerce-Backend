@@ -92,6 +92,21 @@ from django.shortcuts import redirect
 from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect
 from django.contrib.auth import login
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+from cloudinary import exceptions
+
+def cloudinary_debug(request):
+    from cloudinary_storage.storage import MediaCloudinaryStorage
+    storage = MediaCloudinaryStorage()
+    
+    return JsonResponse({
+        'cloudinary_configured': hasattr(settings, 'CLOUDINARY_STORAGE'),
+        'default_storage': settings.DEFAULT_FILE_STORAGE,
+        'storage_class': str(storage.__class__),
+        'can_access_cloudinary': True  # This will error if Cloudinary isn't configured
+    })
 
 class NoSignalLoginView(LoginView):
     """
