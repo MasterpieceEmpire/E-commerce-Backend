@@ -25,6 +25,7 @@ from megamall.views import (
     NoSignalLoginView,
     upload_image,  
     test_mongo_connection,
+    OrderViewSet,
 )
 
 # DRF Router (only for ViewSets)
@@ -34,6 +35,7 @@ router.register(r'categories', CategoryView, basename='category')
 router.register(r'guest-users', GuestUserViewSet, basename='guestuser')
 router.register(r'hire-items', HireItemViewSet, basename='hireitem')
 router.register(r'shipping-addresses', ShippingAddressViewSet, basename='shippingaddress')
+router.register(r'orders', OrderViewSet, basename='order')
 
 # URL Patterns
 api_urlpatterns = [

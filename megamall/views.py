@@ -83,6 +83,19 @@ urllib.request.install_opener(
 
 logger = logging.getLogger(__name__)
 
+class OrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+
+    @action(detail=True, methods=['get'])
+    def status(self, request, pk=None):
+        try:
+            order = self.get_object()
+            return Response({"id": str(order.id), "status": order.status})
+        except Order.DoesNotExist:
+            return Response({"detail": "Order not found"}, status=404)
+
+            
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def test_mongo_connection(request):
