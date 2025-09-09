@@ -70,7 +70,7 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(blank=True)
     # Store Cloudinary public_id instead of local image file
-    image_url = models.URLField(blank=True, null=True)
+    image = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -140,7 +140,7 @@ class HireItem(models.Model):
     hire_price_per_day = models.DecimalField(max_digits=10, decimal_places=2)
     hire_price_per_hour = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     # Store Cloudinary public_id instead of local image file
-    image_url = models.URLField(blank=True, null=True)
+    image = models.CharField(max_length=255, blank=True, null=True)
     details = models.TextField(blank=True)
 
     def __str__(self):

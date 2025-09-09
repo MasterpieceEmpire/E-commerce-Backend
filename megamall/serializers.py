@@ -27,18 +27,51 @@ class BaseMongoDBSerializer(serializers.ModelSerializer):
 # ----------------------------
 # Product Serializer
 # ----------------------------
-class ProductSerializer(serializers.ModelSerializer):
-    image_url = serializers.URLField(required=False)
+class BaseCloudinarySerializer(BaseMongoDBSerializer):
+    image = serializers.ImageField(write_only=True, required=False)
+    image_url = serializers.CharField(read_only=True)
 
     class Meta:
+        abstract = True
+
+    def create(self, validated_data):
+        image = validated_data.pop("image", None)
+        ModelClass = self.Meta.model
+        instance = ModelClass.objects.create(**validated_data)
+
+        if image:
+            folder = getattr(self.Meta, "cloudinary_folder", "uploads")
+            result = upload_to_cloudinary(image, folder=folder)
+            instance.image_url = result["secure_url"]
+            instance.save()
+
+        return instance
+
+    def update(self, instance, validated_data):
+        image = validated_data.pop("image", None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if image:
+            folder = getattr(self.Meta, "cloudinary_folder", "uploads")
+            result = upload_to_cloudinary(image, folder=folder)
+            instance.image_url = result["secure_url"]
+
+        instance.save()
+        return instance
+
+
+class ProductSerializer(BaseCloudinarySerializer):
+    class Meta(BaseCloudinarySerializer.Meta):
         model = Product
+        cloudinary_folder = "products"
         fields = '__all__'
 
-class HireItemSerializer(serializers.ModelSerializer):
-    image_url = serializers.URLField(required=False)
-
-    class Meta:
+class HireItemSerializer(BaseCloudinarySerializer):
+    class Meta(BaseCloudinarySerializer.Meta):
         model = HireItem
+        cloudinary_folder = "hire_items"
         fields = '__all__'
 
 # ----------------------------
