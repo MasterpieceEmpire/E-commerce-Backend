@@ -37,7 +37,7 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
         abstract = True
 
     def create(self, validated_data):
-    image = validated_data.pop('image', None)
+    image = validated_data.pop('image', None)  # ✅ properly indented
     if image:
         image_url = upload_to_cloudinary(image, folder='products')
         validated_data['image'] = image_url
