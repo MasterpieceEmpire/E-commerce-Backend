@@ -37,12 +37,12 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
         image = validated_data.pop("image", None)
         ModelClass = self.Meta.model
 
-        # Create the instance without the image first
         instance = ModelClass.objects.create(**validated_data)
 
         if image:
-            # Upload safely to Cloudinary
-            result = upload_to_cloudinary(image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
+            # Normalize BEFORE calling uploader
+            clean_image = normalize_uploaded_file(image)
+            result = upload_to_cloudinary(clean_image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
             instance.image_url = result.get("secure_url", "")
             instance.save()
 
@@ -51,17 +51,17 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
     def update(self, instance, validated_data):
         image = validated_data.pop("image", None)
 
-        # Update other fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
         if image:
-            # Upload safely to Cloudinary
-            result = upload_to_cloudinary(image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
+            clean_image = normalize_uploaded_file(image)
+            result = upload_to_cloudinary(clean_image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
             instance.image_url = result.get("secure_url", "")
 
         instance.save()
         return instance
+
 
 # ----------------------------
 # Product Serializer
