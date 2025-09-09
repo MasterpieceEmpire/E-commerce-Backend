@@ -20,29 +20,15 @@ def upload_to_cloudinary(file, folder='products'):
     Works with Django InMemoryUploadedFile and TemporaryUploadedFile.
     """
     try:
-        # If it's an InMemoryUploadedFile or TemporaryUploadedFile, pass its content
-        if hasattr(file, 'read'):
-            file.open()  # make sure it's open
-            result = cloudinary.uploader.upload(
-                file.read(),
-                folder=folder,
-                resource_type="image",
-                use_filename=True,
-                unique_filename=True,
-                overwrite=False
-            )
-            file.close()
-        else:
-            # If it's already a path/bytes
-            result = cloudinary.uploader.upload(
-                file,
-                folder=folder,
-                resource_type="image",
-                use_filename=True,
-                unique_filename=True,
-                overwrite=False
-            )
-
+        # If it's a Django UploadedFile, Cloudinary can handle it directly
+        result = cloudinary.uploader.upload(
+            file,   # <-- no "file=" kwarg
+            folder=folder,
+            resource_type="image",
+            use_filename=True,
+            unique_filename=True,
+            overwrite=False
+        )
         return result
     except Exception as e:
         logger.error(f"Cloudinary upload error: {str(e)}")
