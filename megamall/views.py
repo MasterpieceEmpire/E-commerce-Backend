@@ -188,7 +188,7 @@ class ProductView(viewsets.ModelViewSet):
         if category_slug:
             queryset = queryset.filter(category__slug=category_slug)
 
-        return queryset.order_by('_id')  # ✅ Ensures consistent pagination with MongoDB
+        return queryset.order_by('-id')
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -244,7 +244,7 @@ class HireItemViewSet(viewsets.ModelViewSet):
     serializer_class = HireItemSerializer
 
     def get_queryset(self):
-        return HireItem.objects.all().order_by('_id')  # ✅ Ensures pagination consistency with MongoDB
+        return queryset.order_by('-id')
 
     def get_serializer_context(self):
         return {'request': self.request}
