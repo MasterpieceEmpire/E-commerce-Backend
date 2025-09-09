@@ -11,20 +11,26 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def upload_to_cloudinary(file, folder_name):
+def upload_to_cloudinary(file, folder_name='general'):
     """
-    Upload a file to Cloudinary
+    Upload a file to Cloudinary with proper file handling
     """
     try:
+        # Use Cloudinary's upload method with file object directly
         result = cloudinary.uploader.upload(
             file,
             folder=f"megamall/{folder_name}",
-            resource_type="auto"
+            resource_type="auto",
+            use_filename=True,
+            unique_filename=True,
+            overwrite=False
         )
+        
         return result
+        
     except Exception as e:
-        logger.error(f"Cloudinary upload error: {str(e)}")
-        raise
+        print(f"Cloudinary upload error: {str(e)}")
+        raise e
 
 
 def generate_invoice_pdf(context):
