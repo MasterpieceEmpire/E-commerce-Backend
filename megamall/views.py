@@ -185,7 +185,7 @@ class NoSignalLoginView(LoginView):
 
 class ProductView(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
-    parser_classes = [MultiPartParser, FormParser]  # Add this for file uploads
+    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Add JSONParser
 
     def get_queryset(self):
         category_slug = self.request.query_params.get("category")
@@ -198,6 +198,28 @@ class ProductView(viewsets.ModelViewSet):
 
     def get_serializer_context(self):
         return {'request': self.request}
+
+    def create(self, request, *args, **kwargs):
+        # Handle both form data and JSON
+        if request.content_type == 'application/json':
+            # For JSON requests, use request.data directly
+            serializer = self.get_serializer(data=request.data)
+        else:
+            # For form data, handle files properly
+            data = request.POST.copy()
+            files = request.FILES
+            
+            # Merge data and files
+            mutable_data = data.copy()
+            if 'image' in files:
+                mutable_data['image'] = files['image']
+                
+            serializer = self.get_serializer(data=mutable_data)
+        
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class CategoryView(viewsets.ModelViewSet):
@@ -248,13 +270,32 @@ class ShippingAddressViewSet(viewsets.ModelViewSet):
 
 class HireItemViewSet(viewsets.ModelViewSet):
     serializer_class = HireItemSerializer
-    parser_classes = [MultiPartParser, FormParser]  # Add this for file uploads
+    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Add JSONParser
 
     def get_queryset(self):
         return HireItem.objects.all().order_by('-id')
 
     def get_serializer_context(self):
         return {'request': self.request}
+
+    def create(self, request, *args, **kwargs):
+        # Handle both form data and JSON
+        if request.content_type == 'application/json':
+            serializer = self.get_serializer(data=request.data)
+        else:
+            data = request.POST.copy()
+            files = request.FILES
+            
+            mutable_data = data.copy()
+            if 'image' in files:
+                mutable_data['image'] = files['image']
+                
+            serializer = self.get_serializer(data=mutable_data)
+        
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
