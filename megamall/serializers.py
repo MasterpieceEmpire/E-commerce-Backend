@@ -131,9 +131,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
 # Order Serializer
 # ----------------------------
 class OrderSerializer(serializers.ModelSerializer):
+    id = serializers.SerializerMethodField()
     order_items = OrderItemSerializer(many=True, read_only=True)
     shipping_address = ShippingAddressSerializer(read_only=True)
-    guest_user = GuestUserSerializer(read_only=True)  # ✅ Nicer output
+    guest_user = GuestUserSerializer(read_only=True)
 
     class Meta:
         model = Order
@@ -142,9 +143,10 @@ class OrderSerializer(serializers.ModelSerializer):
             'payment_method', 'total_price', 'status',
             'created_at', 'order_items'
         ]
-        read_only_fields = ['id']
 
-
+    def get_id(self, obj):
+        return str(obj.id)
+        
 # ----------------------------
 # Courier Order Serializer
 # ----------------------------
