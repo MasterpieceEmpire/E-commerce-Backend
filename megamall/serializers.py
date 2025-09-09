@@ -13,17 +13,17 @@ class ProductSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(),
         slug_field='name'
     )
-    image_url = serializers.SerializerMethodField()  
+    image_url = serializers.SerializerMethodField()  # ✅ Full Cloudinary URL
 
     class Meta:
         model = Product
         fields = ['id', 'name', 'price', 'image', 'image_url', 'description', 'category']
 
     def get_image_url(self, obj):
-        request = self.context.get('request')  
-        if obj.image and hasattr(obj.image, 'url'):
-            return request.build_absolute_uri(obj.image.url)
+        if obj.image:
+            return obj.image.url
         return None
+
 
 # ----------------------------
 # Category Serializer
@@ -109,17 +109,17 @@ class OrderSerializer(serializers.ModelSerializer):
 # ----------------------------
 class HireItemSerializer(serializers.ModelSerializer):
     id = serializers.CharField(read_only=True)
-    image_url = serializers.SerializerMethodField()  # ✅ add this
+    image_url = serializers.SerializerMethodField()  # ✅ Full Cloudinary URL
 
     class Meta:
         model = HireItem
         fields = ['id', 'name', 'hire_price_per_day', 'hire_price_per_hour', 'image', 'image_url', 'details']
 
     def get_image_url(self, obj):
-        request = self.context.get('request')
-        if obj.image and hasattr(obj.image, 'url'):
-            return request.build_absolute_uri(obj.image.url)
+        if obj.image:
+            return obj.image.url
         return None
+
 
 # ----------------------------
 # Courier Order Serializer
