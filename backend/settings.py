@@ -1,4 +1,5 @@
 # settings.py
+
 import os
 from pathlib import Path
 from decouple import config
@@ -16,6 +17,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config("SECRET_KEY", default=get_random_secret_key())
 DEBUG = config("DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = ["*"]  # ⚠️ Change in production (add domain or IP)
+
+# -------------------------------------------------------------------
+# MongoDB Backend Patch (Avoid blocking server_info() call)
+# -------------------------------------------------------------------
+try:
+    from django_mongodb_backend.base import DatabaseWrapper
+
+    def patched_get_database_version(self):
+        return (5, 0)  # Faking a supported MongoDB version
+
+    DatabaseWrapper.get_database_version = patched_get_database_version
+except Exception as e:
+    print("MongoDB backend patch failed:", e)
 
 # -------------------------------------------------------------------
 # APPLICATION DEFINITION
@@ -94,11 +108,13 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-# Use only one authentication backend
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
+# -------------------------------------------------------------------
+# REST FRAMEWORK
+# -------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -117,9 +133,9 @@ SIMPLE_JWT = {
     "USER_ID_CLAIM": "user_id",
 }
 
-# ------------------------------------------------------------------
+# -------------------------------------------------------------------
 # DATABASE (MongoDB Atlas)
-# ------------------------------------------------------------------
+# -------------------------------------------------------------------
 MONGO_URI = config("MONGO_URI")
 MONGO_DB_NAME = config("MONGO_DB_NAME", default="Masterpiece")
 
@@ -133,7 +149,9 @@ DATABASES = {
     }
 }
 
-# Session configuration
+# -------------------------------------------------------------------
+# SESSION SETTINGS
+# -------------------------------------------------------------------
 SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
 SESSION_COOKIE_NAME = 'sessionid'
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
