@@ -13,12 +13,17 @@ from cloudinary.utils import cloudinary_url
 # Product Serializer
 # ----------------------------
 class ObjectIdField(serializers.Field):
-    """Custom field to handle MongoDB ObjectId serialization"""
+    """
+    Custom field to handle MongoDB ObjectId conversion between BSON and JSON.
+    """
     def to_representation(self, value):
         return str(value) if isinstance(value, ObjectId) else value
 
     def to_internal_value(self, data):
-        return ObjectId(data)
+        try:
+            return ObjectId(str(data))
+        except Exception:
+            raise serializers.ValidationError("Invalid ObjectId")
 
 
 class BaseCloudinarySerializer(serializers.ModelSerializer):
