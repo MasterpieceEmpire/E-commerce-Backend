@@ -13,23 +13,45 @@ logger = logging.getLogger(__name__)
 
 def upload_to_cloudinary(file, folder_name='general'):
     """
-    Upload a file to Cloudinary with proper file handling
+    Upload a file to Cloudinary with proper file handling for Django file objects
     """
     try:
-        # Use Cloudinary's upload method with file object directly
-        result = cloudinary.uploader.upload(
-            file,
-            folder=f"megamall/{folder_name}",
-            resource_type="auto",
-            use_filename=True,
-            unique_filename=True,
-            overwrite=False
-        )
+        # Handle different types of file inputs
+        if hasattr(file, 'read'):
+            # If it's a file-like object (InMemoryUploadedFile, TemporaryUploadedFile)
+            if hasattr(file, 'seek'):
+                file.seek(0)  # Reset file pointer to beginning
+            
+            # Read the file content and upload
+            file_content = file.read()
+            result = cloudinary.uploader.upload(
+                file_content,
+                folder=f"megamall/{folder_name}",
+                resource_type="auto",
+                use_filename=True,
+                unique_filename=True,
+                overwrite=False
+            )
+            
+            # Reset file pointer if needed for other operations
+            if hasattr(file, 'seek'):
+                file.seek(0)
+                
+        else:
+            # If it's a file path or other type
+            result = cloudinary.uploader.upload(
+                file,
+                folder=f"megamall/{folder_name}",
+                resource_type="auto",
+                use_filename=True,
+                unique_filename=True,
+                overwrite=False
+            )
         
         return result
         
     except Exception as e:
-        print(f"Cloudinary upload error: {str(e)}")
+        logger.error(f"Cloudinary upload error: {str(e)}")
         raise e
 
 
@@ -44,7 +66,7 @@ def generate_invoice_pdf(context):
 
 
 def send_invoice_email(order, to_email):
-    from megamall.models import OrderItem  # replace 'myapp' with your app name
+    from megamall.models import OrderItem
 
     # Build context
     order_items = order.order_items.all()
