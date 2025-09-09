@@ -1,4 +1,5 @@
 # megamall/serializers.py
+from io import BytesIO
 from bson import ObjectId
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
