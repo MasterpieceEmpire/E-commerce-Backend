@@ -84,20 +84,23 @@ class CategorySerializer(serializers.ModelSerializer):
 User = get_user_model()
 
 class GuestUserSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+
     class Meta:
         model = GuestUser
-        fields = [
-            "id", "first_name", "last_name",  # ✅ added
-            "email", "phone", "subscribed", "is_active"
-        ]
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone', 'is_active', 'subscribed']
+
 
 # ----------------------------
 # Shipping Address Serializer
 # ----------------------------
 class ShippingAddressSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+
     class Meta:
         model = ShippingAddress
-        fields = '__all__'
+        fields = ['all']
+
 
 # ----------------------------
 # Token Serializer
@@ -135,14 +138,14 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     id = ObjectIdField(read_only=True)
-    order_items = OrderItemSerializer(many=True, read_only=True)
-    shipping_address = ShippingAddressSerializer(read_only=True)
     guest_user = ObjectIdField(read_only=True)
+    shipping_address = ShippingAddressSerializer(read_only=True)
+    order_items = OrderItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order
         fields = [
-            'id', 'shipping_address', 'guest_user',
+            'id', 'guest_user', 'shipping_address',
             'payment_method', 'total_price', 'status',
             'created_at', 'order_items'
         ]
