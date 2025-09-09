@@ -16,14 +16,17 @@ logger = logging.getLogger(__name__)
 # ----------------------------
 def upload_to_cloudinary(file, folder='general'):
     """
-    Upload a file to Cloudinary.
+    Upload a Django file object to Cloudinary.
     """
     try:
+        # Convert InMemoryUploadedFile to file-like object if necessary
+        file_obj = file.file if hasattr(file, 'file') else file
+
         result = cloudinary.uploader.upload(
-            file,
-            folder=folder,
+            file_obj,
+            folder=folder
         )
-        return result.get("secure_url")  # Return the URL of the uploaded file
+        return result.get("secure_url")
     except Exception as e:
         logger.error(f"Cloudinary upload failed: {e}")
         raise
