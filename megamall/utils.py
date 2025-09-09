@@ -11,45 +11,24 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
-def upload_to_cloudinary(file, folder="general", resource_type="auto"):
+def upload_to_cloudinary(file, folder_name='general'):
     """
-    Upload a file (image, video, pdf, etc.) to Cloudinary.
-    Handles both Django file objects and raw file paths/bytes.
+    Upload a file to Cloudinary with proper file handling for Django file objects
     """
-
     try:
-        upload_options = {
-            "folder": f"megamall/{folder}",
-            "resource_type": resource_type,
-            "use_filename": True,
-            "unique_filename": True,
-            "overwrite": False,
-        }
-
-        # ✅ If it's a Django file-like object (InMemoryUploadedFile, TemporaryUploadedFile, BytesIO, etc.)
-        if hasattr(file, "read"):
-            if hasattr(file, "seek"):
-                file.seek(0)  # reset pointer just in case
-            result = cloudinary.uploader.upload(file, **upload_options)
-
-        # ✅ If it's a file path string or URL
-        elif isinstance(file, str):
-            result = cloudinary.uploader.upload(file, **upload_options)
-
-        # ✅ If it's raw bytes, wrap in BytesIO
-        elif isinstance(file, (bytes, bytearray)):
-            result = cloudinary.uploader.upload(BytesIO(file), **upload_options)
-
-        else:
-            raise TypeError(f"Unsupported file type for Cloudinary upload: {type(file)}")
-
+        result = cloudinary.uploader.upload(
+            file,  # ✅ Pass the file object directly
+            folder=f"megamall/{folder_name}",
+            resource_type="auto",
+            use_filename=True,
+            unique_filename=True,
+            overwrite=False
+        )
         return result
 
     except Exception as e:
-        logger.error(f"Cloudinary upload error in folder '{folder}': {str(e)}")
+        logger.error(f"Cloudinary upload error: {str(e)}")
         raise e
-
 
 def generate_invoice_pdf(context):
     template = get_template('templates/invoice_template.html')
