@@ -1,4 +1,5 @@
 # Standard Library
+import uuid
 import base64
 import logging
 import re
