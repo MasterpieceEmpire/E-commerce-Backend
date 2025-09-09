@@ -2,29 +2,31 @@ from bson import ObjectId
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from django.contrib.auth.hashers import make_password
-from .models import Product, Category, GuestUser, ShippingAddress, Order, OrderItem, CourierOrder, HireItem
-import cloudinary.uploader
+from .models import (
+    Product, Category, GuestUser, ShippingAddress,
+    Order, OrderItem, CourierOrder, HireItem
+)
 from .utils import upload_to_cloudinary
-from cloudinary.utils import cloudinary_url
 
 # ----------------------------
-# Product Serializer
+# Shared Mixin for ObjectId
 # ----------------------------
-class BaseCloudinarySerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
-    image = serializers.ImageField(write_only=True, required=False)  # file input
-    image_url = serializers.CharField(read_only=True)  # direct Cloudinary URL stored in DB
+class ObjectIdSerializerMixin:
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        if hasattr(instance, 'id') and isinstance(instance.id, ObjectId):
+            rep['id'] = str(instance.id)
+        return rep
+
+# ----------------------------
+# Cloudinary Base Serializer
+# ----------------------------
+class BaseCloudinarySerializer(ObjectIdSerializerMixin, serializers.ModelSerializer):
+    image = serializers.ImageField(write_only=True, required=False)
+    image_url = serializers.CharField(read_only=True)
 
     class Meta:
         abstract = True
-        fields = '__all__'
-
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        if isinstance(instance.id, ObjectId):
-            rep['id'] = str(instance.id)
-        return rep
 
     def create(self, validated_data):
         image = validated_data.pop("image", None)
@@ -33,7 +35,6 @@ class BaseCloudinarySerializer(serializers.ModelSerializer):
         if image:
             folder = getattr(self.Meta, "cloudinary_folder", "uploads")
             result = upload_to_cloudinary(image, folder=folder)
-            # ✅ store secure_url directly
             instance.image_url = result["secure_url"]
             instance.save()
 
@@ -41,26 +42,25 @@ class BaseCloudinarySerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         image = validated_data.pop("image", None)
-
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
         if image:
             folder = getattr(self.Meta, "cloudinary_folder", "uploads")
             result = upload_to_cloudinary(image, folder=folder)
-            # ✅ replace with new secure_url
             instance.image_url = result["secure_url"]
 
         instance.save()
         return instance
 
-
+# ----------------------------
+# Product & HireItem Serializers
+# ----------------------------
 class ProductSerializer(BaseCloudinarySerializer):
     class Meta(BaseCloudinarySerializer.Meta):
         model = Product
         cloudinary_folder = "products"
         fields = '__all__'
-
 
 class HireItemSerializer(BaseCloudinarySerializer):
     class Meta(BaseCloudinarySerializer.Meta):
@@ -71,9 +71,7 @@ class HireItemSerializer(BaseCloudinarySerializer):
 # ----------------------------
 # Category Serializer
 # ----------------------------
-class CategorySerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
-
+class CategorySerializer(ObjectIdSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'name', 'slug']
@@ -83,24 +81,24 @@ class CategorySerializer(serializers.ModelSerializer):
 # ----------------------------
 User = get_user_model()
 
-class GuestUserSerializer(serializers.ModelSerializer):
+class GuestUserSerializer(ObjectIdSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = GuestUser
         fields = [
-            "id", "first_name", "last_name",  # ✅ added
+            "id", "first_name", "last_name",
             "email", "phone", "subscribed", "is_active"
         ]
 
 # ----------------------------
 # Shipping Address Serializer
 # ----------------------------
-class ShippingAddressSerializer(serializers.ModelSerializer):
+class ShippingAddressSerializer(ObjectIdSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = ShippingAddress
         fields = '__all__'
 
 # ----------------------------
-# Token Serializer
+# JWT Token Serializer
 # ----------------------------
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'email'
@@ -114,8 +112,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # ----------------------------
 # Order Item Serializer
 # ----------------------------
-class OrderItemSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
+class OrderItemSerializer(ObjectIdSerializerMixin, serializers.ModelSerializer):
     product = serializers.StringRelatedField()
     product_image_url = serializers.ReadOnlyField(source='product.image_url')
 
@@ -123,15 +120,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
 
-    def get_id(self, obj):
-        # Ensure ObjectId is serialized as a string
-        return str(obj.id) if obj.id else None
-
 # ----------------------------
 # Order Serializer
 # ----------------------------
-class OrderSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
+class OrderSerializer(ObjectIdSerializerMixin, serializers.ModelSerializer):
     order_items = OrderItemSerializer(many=True, read_only=True)
     shipping_address = ShippingAddressSerializer(read_only=True)
     guest_user = GuestUserSerializer(read_only=True)
@@ -144,18 +136,13 @@ class OrderSerializer(serializers.ModelSerializer):
             'created_at', 'order_items'
         ]
 
-    def get_id(self, obj):
-        return str(obj.id)
-        
 # ----------------------------
 # Courier Order Serializer
 # ----------------------------
-class CourierOrderSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
+class CourierOrderSerializer(ObjectIdSerializerMixin, serializers.ModelSerializer):
     parcel_action = serializers.ChoiceField(
         choices=[("send", "send"), ("receive", "receive")],
-        required=False,
-        allow_blank=True
+        required=False, allow_blank=True
     )
     selected_item = serializers.CharField(required=False, allow_blank=True)
     item_type = serializers.CharField(required=False, allow_blank=True)
