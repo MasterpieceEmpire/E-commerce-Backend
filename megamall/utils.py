@@ -16,42 +16,22 @@ logger = logging.getLogger(__name__)
 # ----------------------------
 def upload_to_cloudinary(file, folder='products'):
     """
-    Upload only the image file to Cloudinary without any additional fields
+    Upload only the image file to Cloudinary (safe for Django InMemoryUploadedFile).
     """
     try:
-        # The key fix: Read the file content and pass ONLY the bytes to Cloudinary
-        if hasattr(file, 'read'):
-            # Save current position and read file content
-            current_position = file.tell()
-            file.seek(0)
-            file_content = file.read()
-            file.seek(current_position)  # Reset to original position
-            
-            # Upload ONLY the file content (bytes), not the file object
-            result = cloudinary.uploader.upload(
-                file_content,  # Pass the raw bytes, not the file object
-                folder=folder,
-                resource_type="image",
-                use_filename=True,
-                unique_filename=True,
-                overwrite=False
-            )
-        else:
-            # If it's not a file object, try direct upload
-            result = cloudinary.uploader.upload(
-                file,
-                folder=folder,
-                resource_type="image",
-                use_filename=True,
-                unique_filename=True,
-                overwrite=False
-            )
-        
+        result = cloudinary.uploader.upload(
+            file,  # <-- pass the file object directly
+            folder=folder,
+            resource_type="image",
+            use_filename=True,
+            unique_filename=True,
+            overwrite=False
+        )
         return result
-        
     except Exception as e:
         logger.error(f"Cloudinary upload error: {str(e)}")
         raise e
+
 
 # ----------------------------
 # PDF Generation Utility
