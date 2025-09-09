@@ -19,23 +19,26 @@ def upload_to_cloudinary(file, folder="general"):
     Upload a Django UploadedFile (InMemory or Temporary) to Cloudinary safely.
     """
     try:
-        # Always normalize the file to BytesIO to avoid 'fields and body' error
+        # If the file is a Django UploadedFile, pass it directly to Cloudinary
         if hasattr(file, "read"):
-            file_data = file.read()
-            file_stream = BytesIO(file_data)
-            file_stream.seek(0)  # <<< IMPORTANT: reset pointer
+            return cloudinary.uploader.upload(
+                file,
+                folder=folder,
+                resource_type="auto",
+                use_filename=True,
+                unique_filename=True,
+                overwrite=False,
+            )
+        # If the file is already a path or BytesIO
         else:
-            file_stream = file  # already bytes or path
-
-        result = cloudinary.uploader.upload(
-            file_stream,   # pass as positional, not file=file
-            folder=folder,
-            resource_type="auto",
-            use_filename=True,
-            unique_filename=True,
-            overwrite=False,
-        )
-        return result
+            return cloudinary.uploader.upload(
+                file,
+                folder=folder,
+                resource_type="auto",
+                use_filename=True,
+                unique_filename=True,
+                overwrite=False,
+            )
     except Exception as e:
         logger.error(f"Cloudinary upload failed: {e}")
         raise
