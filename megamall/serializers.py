@@ -114,34 +114,38 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # ----------------------------
 # Order Item Serializer
 # ----------------------------
+class ObjectIdField(serializers.Field):
+    """Custom field to handle MongoDB ObjectId serialization"""
+    def to_representation(self, value):
+        return str(value) if isinstance(value, ObjectId) else value
+
+    def to_internal_value(self, data):
+        return ObjectId(data)
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()  # ✅ force str
+    id = ObjectIdField(read_only=True)
     product = serializers.StringRelatedField()
-    product_image_url = serializers.ReadOnlyField(source='product.image_url')
+    product_image_url = serializers.ReadOnlyField(source='product.image.url')
 
     class Meta:
         model = OrderItem
         fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
 
-    def get_id(self, obj):
-        return str(obj.id) if obj.id else None
 
-
-# ----------------------------
-# Order Serializer
-# ----------------------------
 class OrderSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
+    id = ObjectIdField(read_only=True)
     order_items = OrderItemSerializer(many=True, read_only=True)
     shipping_address = ShippingAddressSerializer(read_only=True)
+    guest_user = ObjectIdField(read_only=True)
 
     class Meta:
         model = Order
-        fields = ['id', 'shipping_address', 'guest_user', 'payment_method',
-                  'total_price', 'status', 'created_at', 'order_items']
-
-    def get_id(self, obj):
-        return str(obj.id)
+        fields = [
+            'id', 'shipping_address', 'guest_user',
+            'payment_method', 'total_price', 'status',
+            'created_at', 'order_items'
+        ]
 
         
 # ----------------------------
