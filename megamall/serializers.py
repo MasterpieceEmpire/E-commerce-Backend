@@ -1,3 +1,4 @@
+# megamall/serializers.py
 from bson import ObjectId
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
@@ -9,38 +10,30 @@ from .utils import upload_to_cloudinary
 from .fields import ObjectIdField
 from cloudinary.utils import cloudinary_url
 
+# ----------------------------
+# Base Serializer with ObjectId handling
+# ----------------------------
+class BaseMongoDBSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+    
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # Ensure all ObjectId fields are converted to strings
+        for field_name, field_value in representation.items():
+            if isinstance(field_value, ObjectId):
+                representation[field_name] = str(field_value)
+        return representation
 
 # ----------------------------
 # Product Serializer
 # ----------------------------
-class ObjectIdField(serializers.Field):
-    """
-    Custom field to handle MongoDB ObjectId conversion between BSON and JSON.
-    """
-    def to_representation(self, value):
-        return str(value) if isinstance(value, ObjectId) else value
-
-    def to_internal_value(self, data):
-        try:
-            return ObjectId(str(data))
-        except Exception:
-            raise serializers.ValidationError("Invalid ObjectId")
-
-
-class BaseCloudinarySerializer(serializers.ModelSerializer):
-    id = ObjectIdField(read_only=True)
-    image = serializers.ImageField(write_only=True, required=False)  # file input
-    image_url = serializers.CharField(read_only=True)  # direct Cloudinary URL stored in DB
+class BaseCloudinarySerializer(BaseMongoDBSerializer):
+    image = serializers.ImageField(write_only=True, required=False)
+    image_url = serializers.CharField(read_only=True)
 
     class Meta:
         abstract = True
         fields = '__all__'
-
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        if isinstance(instance.id, ObjectId):
-            rep['id'] = str(instance.id)
-        return rep
 
     def create(self, validated_data):
         image = validated_data.pop("image", None)
@@ -49,7 +42,6 @@ class BaseCloudinarySerializer(serializers.ModelSerializer):
         if image:
             folder = getattr(self.Meta, "cloudinary_folder", "uploads")
             result = upload_to_cloudinary(image, folder=folder)
-            # ✅ store secure_url directly
             instance.image_url = result["secure_url"]
             instance.save()
 
@@ -64,19 +56,16 @@ class BaseCloudinarySerializer(serializers.ModelSerializer):
         if image:
             folder = getattr(self.Meta, "cloudinary_folder", "uploads")
             result = upload_to_cloudinary(image, folder=folder)
-            # ✅ replace with new secure_url
             instance.image_url = result["secure_url"]
 
         instance.save()
         return instance
-
 
 class ProductSerializer(BaseCloudinarySerializer):
     class Meta(BaseCloudinarySerializer.Meta):
         model = Product
         cloudinary_folder = "products"
         fields = '__all__'
-
 
 class HireItemSerializer(BaseCloudinarySerializer):
     class Meta(BaseCloudinarySerializer.Meta):
@@ -87,9 +76,7 @@ class HireItemSerializer(BaseCloudinarySerializer):
 # ----------------------------
 # Category Serializer
 # ----------------------------
-class CategorySerializer(serializers.ModelSerializer):
-    id = ObjectIdField(read_only=True)
-
+class CategorySerializer(BaseMongoDBSerializer):
     class Meta:
         model = Category
         fields = ['id', 'name', 'slug']
@@ -97,40 +84,25 @@ class CategorySerializer(serializers.ModelSerializer):
 # ----------------------------
 # GuestUser Serializer
 # ----------------------------
-User = get_user_model()
-
-class GuestUserSerializer(serializers.ModelSerializer):
-    id = ObjectIdField(read_only=True)
-
+class GuestUserSerializer(BaseMongoDBSerializer):
     class Meta:
         model = GuestUser
         fields = ['id', 'first_name', 'last_name', 'email', 'phone', 'is_active', 'subscribed']
 
-
 # ----------------------------
 # Shipping Address Serializer
 # ----------------------------
-class ShippingAddressSerializer(serializers.ModelSerializer):
-    id = ObjectIdField(read_only=True)
+class ShippingAddressSerializer(BaseMongoDBSerializer):
+    guest_user = ObjectIdField()
 
     class Meta:
         model = ShippingAddress
         fields = [
-            'id',
-            'guest_user',
-            'deliveryMethod',
-            'selectedStoreId',
-            'collectorName',
-            'collectorPhone',
-            'full_name',
-            'address',
-            'city',
-            'postal_code',
-            'country',
-            'created_at',
+            'id', 'guest_user', 'deliveryMethod', 'selectedStoreId',
+            'collectorName', 'collectorPhone', 'full_name', 'address',
+            'city', 'postal_code', 'country', 'created_at'
         ]
         read_only_fields = ['created_at']
-
 
 # ----------------------------
 # Token Serializer
@@ -147,19 +119,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # ----------------------------
 # Order Item Serializer
 # ----------------------------
-
-class OrderItemSerializer(serializers.ModelSerializer):
-    id = ObjectIdField(read_only=True)
+class OrderItemSerializer(BaseMongoDBSerializer):
     product = serializers.StringRelatedField()
-    product_image_url = serializers.ReadOnlyField(source='product.image.url')
+    product_image_url = serializers.ReadOnlyField(source='product.image_url')
 
     class Meta:
         model = OrderItem
         fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
 
-
-class OrderSerializer(serializers.ModelSerializer):
-    id = ObjectIdField(read_only=True)
+# ----------------------------
+# Order Serializer
+# ----------------------------
+class OrderSerializer(BaseMongoDBSerializer):
     guest_user = ObjectIdField(read_only=True)
     shipping_address = ShippingAddressSerializer(read_only=True)
     order_items = OrderItemSerializer(many=True, read_only=True)
@@ -167,17 +138,14 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'id', 'guest_user', 'shipping_address',
-            'payment_method', 'total_price', 'status',
-            'created_at', 'order_items'
+            'id', 'guest_user', 'shipping_address', 'payment_method',
+            'total_price', 'status', 'created_at', 'order_items'
         ]
 
-        
 # ----------------------------
 # Courier Order Serializer
 # ----------------------------
-class CourierOrderSerializer(serializers.ModelSerializer):
-    id = ObjectIdField(read_only=True)
+class CourierOrderSerializer(BaseMongoDBSerializer):
     parcel_action = serializers.ChoiceField(
         choices=[("send", "send"), ("receive", "receive")],
         required=False,

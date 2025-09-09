@@ -1,21 +1,17 @@
+# megamall/fields.py
 from bson import ObjectId
 from rest_framework import serializers
 
 class ObjectIdField(serializers.Field):
-    """
-    Custom DRF field to handle MongoDB ObjectId serialization.
-    Converts ObjectId <-> str.
-    """
-
     def to_representation(self, value):
-        # Convert ObjectId -> str for JSON
+        # Convert ObjectId to string for JSON serialization
         if isinstance(value, ObjectId):
             return str(value)
         return value
 
     def to_internal_value(self, data):
-        # Convert str -> ObjectId when saving
+        # Convert string back to ObjectId for database operations
         try:
-            return ObjectId(str(data))
-        except Exception:
+            return ObjectId(data)
+        except:
             raise serializers.ValidationError("Invalid ObjectId")

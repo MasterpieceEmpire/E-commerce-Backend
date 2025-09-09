@@ -23,6 +23,10 @@ from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import get_template
 from django.urls import reverse
 from django.utils.html import strip_tags
+from rest_framework.parsers import MultiPartParser, FormParser
+from bson import ObjectId
+from django.http import Http404
+from rest_framework import status
 from django.views.decorators.csrf import csrf_exempt
 
 # Third-party packages
@@ -181,6 +185,7 @@ class NoSignalLoginView(LoginView):
 
 class ProductView(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Add this for file uploads
 
     def get_queryset(self):
         category_slug = self.request.query_params.get("category")
@@ -243,14 +248,13 @@ class ShippingAddressViewSet(viewsets.ModelViewSet):
 
 class HireItemViewSet(viewsets.ModelViewSet):
     serializer_class = HireItemSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Add this for file uploads
 
     def get_queryset(self):
-        return queryset.order_by('-id')
+        return HireItem.objects.all().order_by('-id')
 
     def get_serializer_context(self):
         return {'request': self.request}
-
-
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -328,39 +332,38 @@ def create_order(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Process order
-        with transaction.atomic():
-            shipping_serializer = ShippingAddressSerializer(data=data["shippingAddress"])
-            if not shipping_serializer.is_valid():
-                return Response(
-                    {"detail": "Invalid shipping address", "errors": shipping_serializer.errors},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-            shipping_address = shipping_serializer.save()
-            
-            order = Order.objects.create(
-                guest_user=request.user,
-                shipping_address=shipping_address,
-                total_price=data["totalPrice"],
-                status="pending"
+        # REMOVE transaction.atomic() - MongoDB doesn't support Django transactions
+        shipping_serializer = ShippingAddressSerializer(data=data["shippingAddress"])
+        if not shipping_serializer.is_valid():
+            return Response(
+                {"detail": "Invalid shipping address", "errors": shipping_serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
             )
             
-            # Add order items
-            for item in data["cartItems"]:
-                product = get_object_or_404(Product, id=item.get("id"))
-                OrderItem.objects.create(
-                    order=order,
-                    product=product,
-                    quantity=item.get("quantity", 1),
-                    price=product.price
-                )
-                
-            return Response({
-                "orderId": order.id,
-                "message": "Order created successfully"
-            }, status=status.HTTP_201_CREATED)
+        shipping_address = shipping_serializer.save()
+        
+        order = Order.objects.create(
+            guest_user=request.user,
+            shipping_address=shipping_address,
+            total_price=data["totalPrice"],
+            status="pending"
+        )
+        
+        # Add order items
+        for item in data["cartItems"]:
+            product = get_object_or_404(Product, id=item.get("id"))
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                quantity=item.get("quantity", 1),
+                price=product.price
+            )
             
+        return Response({
+            "orderId": str(order.id),  # Convert ObjectId to string
+            "message": "Order created successfully"
+        }, status=status.HTTP_201_CREATED)
+        
     except Exception as e:
         logger.error(f"Order creation failed: {str(e)}")
         return Response(
@@ -368,20 +371,30 @@ def create_order(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_order_status(request, order_id):
     try:
-        order_obj_id = ObjectId(order_id)
-        order = get_object_or_404(Order, id=order_obj_id)
+        # Handle both ObjectId and string representations
+        try:
+            # First try as ObjectId
+            order_obj_id = ObjectId(order_id)
+            order = Order.objects.get(id=order_obj_id)
+        except:
+            # If that fails, try as string
+            order = Order.objects.get(id=order_id)
 
         serializer = OrderSerializer(order)
         return Response(serializer.data)
 
+    except Order.DoesNotExist:
+        logger.warning(f"Order not found: {order_id}")
+        return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+        
     except Exception as e:
-        logger.warning(f"Order status fetch failed for {order_id}: {e}")
-        return Response({"detail": f"Order not found: {str(e)}"}, status=404)
-
+        logger.error(f"Order status fetch failed for {order_id}: {str(e)}")
+        return Response({"detail": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def render_to_pdf(template_src, context_dict={}):
     template = get_template(template_src)
@@ -415,7 +428,8 @@ from megamall.serializers import CourierOrderSerializer
 @permission_classes([permissions.AllowAny])
 def create_courier_order(request):
     try:
-        data = JSONParser().parse(request)
+        # Use request.data instead of JSONParser for better form handling
+        data = request.data
 
         # Remove any fields not part of the model
         cleaned_data = data.copy()
@@ -454,7 +468,7 @@ def create_courier_order(request):
 
             return JsonResponse({
                 "message": "Courier order submitted and email sent.",
-                "id": courier_order.id
+                "id": str(courier_order.id)  # Convert ObjectId to string
             }, status=201)
 
         return JsonResponse({
@@ -466,7 +480,6 @@ def create_courier_order(request):
         logger.error(f"Courier order error: {str(e)}")
         traceback.print_exc()
         return JsonResponse({"error": "Failed to submit courier order."}, status=500)
-
 
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
