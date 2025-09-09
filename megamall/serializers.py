@@ -115,6 +115,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # Order Item Serializer
 # ----------------------------
 class OrderItemSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(read_only=True)  # ✅ Force ObjectId to string
     product = serializers.StringRelatedField()
     product_image_url = serializers.ReadOnlyField(source='product.image.url')
 
@@ -122,6 +123,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
         read_only_fields = ['id']
+
 
 # ----------------------------
 # Order Serializer
