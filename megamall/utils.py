@@ -14,23 +14,23 @@ logger = logging.getLogger(__name__)
 # ----------------------------
 # Cloudinary Upload Utility
 # ----------------------------
-def upload_to_cloudinary(file, folder='products'):
-    """
-    Upload an image file to Cloudinary.
-    Works with Django InMemoryUploadedFile and TemporaryUploadedFile.
-    """
+def upload_to_cloudinary(file, folder="general"):
     try:
+        # Ensure file is in-memory bytes
+        if hasattr(file, "read"):
+            file_data = file.read()
+            file_stream = BytesIO(file_data)
+        else:
+            file_stream = file  # already a path or raw bytes
+
         result = cloudinary.uploader.upload(
-            file,   # <-- ONLY positional argument, no file=file
+            file_stream,
             folder=folder,
-            resource_type="image",
-            use_filename=True,
-            unique_filename=True,
-            overwrite=False
+            resource_type="auto",
+            overwrite=True,
         )
         return result
     except Exception as e:
-        logger.error(f"Cloudinary upload error: {str(e)}")
         raise e
 
 
