@@ -16,37 +16,36 @@ logger = logging.getLogger(__name__)
 # ----------------------------
 def upload_to_cloudinary(file, folder='products'):
     """
-    Upload a file to Cloudinary with proper error handling
+    Upload only the image file to Cloudinary without any additional fields
     """
     try:
-        # Ensure Cloudinary is configured
-        if not hasattr(settings, 'CLOUDINARY_STORAGE'):
-            raise Exception("Cloudinary is not configured")
-        
-        # Handle different file types
+        # The key fix: Read the file content and pass ONLY the bytes to Cloudinary
         if hasattr(file, 'read'):
-            # File object - read it properly
-            if hasattr(file, 'seek') and hasattr(file, 'tell'):
-                # Reset file pointer if possible
-                current_pos = file.tell()
-                file.seek(0)
-                file_content = file.read()
-                file.seek(current_pos)  # Reset to original position
-            else:
-                file_content = file.read()
+            # Save current position and read file content
+            current_position = file.tell()
+            file.seek(0)
+            file_content = file.read()
+            file.seek(current_position)  # Reset to original position
+            
+            # Upload ONLY the file content (bytes), not the file object
+            result = cloudinary.uploader.upload(
+                file_content,  # Pass the raw bytes, not the file object
+                folder=folder,
+                resource_type="image",
+                use_filename=True,
+                unique_filename=True,
+                overwrite=False
+            )
         else:
-            # Assume it's a file path or already in the right format
-            file_content = file
-        
-        # Upload to Cloudinary
-        result = cloudinary.uploader.upload(
-            file_content,
-            folder=folder,
-            resource_type="auto",  # auto-detect image, video, raw
-            use_filename=True,
-            unique_filename=True,
-            overwrite=False
-        )
+            # If it's not a file object, try direct upload
+            result = cloudinary.uploader.upload(
+                file,
+                folder=folder,
+                resource_type="image",
+                use_filename=True,
+                unique_filename=True,
+                overwrite=False
+            )
         
         return result
         
