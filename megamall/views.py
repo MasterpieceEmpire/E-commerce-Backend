@@ -516,8 +516,29 @@ def initiate_payment(request):
     except (TypeError, ValueError):
         return JsonResponse({"error": "Amount must be a positive number."}, status=400)
 
-    if not re.fullmatch(r"^254\d{8}$", str(phone)):
-        return JsonResponse({"error": "Phone number must be in format 2547XXXXXXXX."}, status=400)
+    # Clean the phone number - remove any non-digit characters
+    cleaned_phone = re.sub(r'\D', '', str(phone))
+    
+    # Convert to Safaricom format (2547XXXXXXXX)
+    if cleaned_phone.startswith('254') and len(cleaned_phone) == 12:
+        # Already in correct format: 254712345678
+        formatted_phone = cleaned_phone
+    elif cleaned_phone.startswith('0') and len(cleaned_phone) == 10:
+        # Convert from 0712345678 to 254712345678
+        formatted_phone = '254' + cleaned_phone[1:]
+    elif len(cleaned_phone) == 9:
+        # Convert from 712345678 to 254712345678
+        formatted_phone = '254' + cleaned_phone
+    else:
+        return JsonResponse({
+            "error": "Phone number must be a valid Kenyan number. Examples: +254712345678, 254712345678, 0712345678"
+        }, status=400)
+
+    # Final validation for Safaricom format
+    if not formatted_phone.startswith('2547') or len(formatted_phone) != 12:
+        return JsonResponse({
+            "error": "Phone number must start with 2547 and be 12 digits total after conversion."
+        }, status=400)
 
     # Generate Access Token
     consumer_key = config("MPESA_CONSUMER_KEY")
@@ -550,11 +571,11 @@ def initiate_payment(request):
         "Timestamp": timestamp,
         "TransactionType": "CustomerPayBillOnline",
         "Amount": amount,
-        "PartyA": int(phone),
+        "PartyA": int(formatted_phone),  # Use the formatted phone number
         "PartyB": shortcode,
-        "PhoneNumber": int(phone),
+        "PhoneNumber": int(formatted_phone),  # Use the formatted phone number
         "CallBackURL": callback_url,
-        "AccountReference": "MegaMall Ltd",
+        "AccountReference": "Masterpiece Megamall ",
         "TransactionDesc": "MegaMall Order Payment",
     }
 
