@@ -49,7 +49,7 @@ api_urlpatterns = [
 
     # Orders
     path('orders/', create_order, name='create-order'),
-    path('api/orders/<str:order_id>/status/', get_order_status)
+    path('api/orders/<str:order_id>/status/', get_order_status),
     path('orders/<str:order_id>/invoice/', invoice_pdf_view, name='invoice-pdf'),
 
     # M-Pesa
