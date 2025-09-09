@@ -1,5 +1,4 @@
 # settings.py
-
 import os
 from pathlib import Path
 from decouple import config
@@ -16,23 +15,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # -------------------------------------------------------------------
 SECRET_KEY = config("SECRET_KEY", default=get_random_secret_key())
 DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = ["*"]  # ⚠️ Change in production (add domain or IP)
+ALLOWED_HOSTS = ["*"]  # ✅ Change in production
 
 # -------------------------------------------------------------------
-# MongoDB Backend Patch (Avoid blocking server_info() call)
-# -------------------------------------------------------------------
-try:
-    from django_mongodb_backend.base import DatabaseWrapper
-
-    def patched_get_database_version(self):
-        return (5, 0)  # Faking a supported MongoDB version
-
-    DatabaseWrapper.get_database_version = patched_get_database_version
-except Exception as e:
-    print("MongoDB backend patch failed:", e)
-
-# -------------------------------------------------------------------
-# APPLICATION DEFINITION
+# APPLICATIONS
 # -------------------------------------------------------------------
 INSTALLED_APPS = [
     'cloudinary',
@@ -40,16 +26,15 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    "rest_framework",
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'rest_framework',
     'corsheaders',
-    "megamall.apps.MegamallConfig",
-    "rest_framework_simplejwt",
+    'megamall.apps.MegamallConfig',
+    'rest_framework_simplejwt',
 ]
 
-# Use custom GuestUser model instead of Django's default User
 AUTH_USER_MODEL = "megamall.GuestUser"
 
 # -------------------------------------------------------------------
@@ -59,17 +44,17 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'megamall.middleware.EarlyPatchMiddleware',
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 # -------------------------------------------------------------------
-# ROOT & URLS
+# URLS & WSGI
 # -------------------------------------------------------------------
 ROOT_URLCONF = "backend.urls"
 
@@ -102,18 +87,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://masterpiece-frontend.vercel.app",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
 # -------------------------------------------------------------------
-# REST FRAMEWORK
+# REST FRAMEWORK & JWT
 # -------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -128,7 +109,7 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
-    'UPDATE_LAST_LOGIN': False,  # ⚠️ CRITICAL: Set this to False for MongoDB
+    'UPDATE_LAST_LOGIN': False,
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
 }
@@ -150,16 +131,16 @@ DATABASES = {
 }
 
 # -------------------------------------------------------------------
-# SESSION SETTINGS
+# SESSION
 # -------------------------------------------------------------------
 SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
 SESSION_COOKIE_NAME = 'sessionid'
-SESSION_COOKIE_AGE = 1209600  # 2 weeks
+SESSION_COOKIE_AGE = 1209600
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 # -------------------------------------------------------------------
-# LANGUAGE & TIMEZONE
+# TIMEZONE & LANGUAGE
 # -------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
@@ -167,19 +148,16 @@ USE_I18N = True
 USE_TZ = True
 
 # -------------------------------------------------------------------
-# STATIC & MEDIA FILES
+# STATIC & MEDIA
 # -------------------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# -------------------------------------------------------------------
-# DEFAULT PRIMARY KEY FIELD
-# -------------------------------------------------------------------
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # -------------------------------------------------------------------
-# CLOUDINARY STORAGE CONFIGURATION
+# CLOUDINARY
 # -------------------------------------------------------------------
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
@@ -187,4 +165,7 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': config('CLOUDINARY_API_SECRET'),
 }
 
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+# -------------------------------------------------------------------
+# DEFAULT PRIMARY KEY
+# -------------------------------------------------------------------
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

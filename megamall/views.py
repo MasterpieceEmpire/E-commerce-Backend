@@ -1,13 +1,44 @@
+# Standard Library
 import base64
 import logging
-import requests
-import traceback
 import re
 import os
 import json
+import traceback
+import ssl
+import urllib.request
 from datetime import datetime
+from io import BytesIO
+
+# Django Core
+from django.conf import settings
+from django.contrib.auth import get_user_model, login
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.views import LoginView
+from django.db import IntegrityError, transaction
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.template.loader import get_template
+from django.urls import reverse
+from django.utils.html import strip_tags
 from django.views.decorators.csrf import csrf_exempt
+
+# Third-party packages
+import certifi
+import cloudinary
+import cloudinary.api
+import cloudinary.uploader
+import requests
 import sendgrid
+from decouple import config
+from requests.auth import HTTPBasicAuth
+from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.parsers import JSONParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 from sendgrid.helpers.mail import (
     Mail,
     Email,
@@ -18,38 +49,9 @@ from sendgrid.helpers.mail import (
     FileType,
     Disposition,
 )
-import certifi
-import ssl
-import urllib.request
-
-from io import BytesIO
-from django.shortcuts import get_object_or_404
-from django.http import JsonResponse, HttpResponse
-from django.template.loader import get_template
-from django.utils.html import strip_tags
-from django.conf import settings
-from django.contrib.auth.hashers import make_password
-from django.db import IntegrityError
-from django.db import transaction
-
-from decouple import config
 from xhtml2pdf import pisa
-from requests.auth import HTTPBasicAuth
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import login as auth_login
-from django.contrib.auth.views import LoginView
-from django.contrib.auth import SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
-from django.shortcuts import redirect
-from django.urls import reverse
 
-from rest_framework import viewsets, permissions
-from rest_framework.permissions import AllowAny
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.tokens import RefreshToken
-
+# Project-local imports
 from megamall.models import (
     Product,
     Category,
@@ -71,6 +73,7 @@ from megamall.serializers import (
     CourierOrderSerializer,
 )
 
+
 ssl_context = ssl.create_default_context(cafile=certifi.where())
 urllib.request.install_opener(
     urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_context))
@@ -78,24 +81,7 @@ urllib.request.install_opener(
 
 logger = logging.getLogger(__name__)
 
-# megamall/views.py
 
-from django.contrib.auth import login as auth_login
-from django.contrib.auth.views import LoginView
-from django.shortcuts import redirect
-
-
-from django.contrib.auth.views import LoginView
-from django.shortcuts import redirect
-
-
-from django.contrib.auth.views import LoginView
-from django.shortcuts import redirect
-from django.contrib.auth import login
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
-from cloudinary import exceptions
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
