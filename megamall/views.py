@@ -82,26 +82,27 @@ urllib.request.install_opener(
 
 logger = logging.getLogger(__name__)
 
+# views.py - update your test_mongo_connection function
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def test_mongo_connection(request):
-    """Test MongoDB connection without pagination"""
+    """Test MongoDB connection directly with pymongo"""
     try:
-        # Simple test - try to get database info
-        db_info = connection.database.command('dbStats')
-        return Response({
-            "status": "success",
-            "message": "MongoDB connection successful",
-            "database": db_info['db'],
-            "collections": db_info['collections']
-        })
-    except Exception as e:
-        logger.error(f"MongoDB connection failed: {str(e)}")
-        return Response({
-            "status": "error",
-            "message": "MongoDB connection failed",
-            "error": str(e)
-        }, status=503)
+        MONGO_URI = config("MONGO_URI")
+        MONGO_DB_NAME = config("MONGO_DB_NAME", default="Masterpiece")
+        
+        # Debug output to see what URI is being used
+        print(f"Attempting to connect to: {MONGO_URI}")
+        
+        # Test connection directly
+        client = MongoClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=5000,
+            socketTimeoutMS=10000,
+            connectTimeoutMS=10000
+        )
+        
+        # ... rest of the code
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

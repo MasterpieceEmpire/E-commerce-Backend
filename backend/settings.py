@@ -1,7 +1,7 @@
 # settings.py
 import os
 from pathlib import Path
-from decouple import config
+from decouple import config, Csv  # ← ADD Csv import
 from django.core.management.utils import get_random_secret_key
 from datetime import timedelta
 
@@ -14,8 +14,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY
 # -------------------------------------------------------------------
 SECRET_KEY = config("SECRET_KEY", default=get_random_secret_key())
-DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = ["*"]  # ✅ Change in production
+DEBUG = config("DEBUG", default=False, cast=bool)  # ← Changed to False
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="*", cast=Csv())  # ← Better handling
 
 # -------------------------------------------------------------------
 # APPLICATIONS
@@ -83,11 +83,9 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "https://masterpiece-frontend.vercel.app",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
 ]
 
-CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()  # ← Use copy()
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
@@ -100,8 +98,9 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
-    #"DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    #"PAGE_SIZE": 20,
+    # Keep pagination disabled until MongoDB works
+    # "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    # "PAGE_SIZE": 20,
 }
 
 SIMPLE_JWT = {
@@ -115,7 +114,7 @@ SIMPLE_JWT = {
 }
 
 # -------------------------------------------------------------------
-# DATABASE (MongoDB Atlas)
+# DATABASE (MongoDB Atlas) - FIXED WITH TIMEOUTS
 # -------------------------------------------------------------------
 MONGO_URI = config("MONGO_URI")
 MONGO_DB_NAME = config("MONGO_DB_NAME", default="Masterpiece")
@@ -126,6 +125,12 @@ DATABASES = {
         "NAME": MONGO_DB_NAME,
         "CLIENT": {
             "host": MONGO_URI,
+            "connectTimeoutMS": 10000,    # ← CRITICAL: Add timeouts
+            "socketTimeoutMS": 30000,     # ← CRITICAL: Add timeouts
+            "serverSelectionTimeoutMS": 10000,  # ← CRITICAL: Add timeouts
+            "retryWrites": True,          # ← Recommended
+            "w": "majority",              # ← Recommended
+            "ssl": True,                  # ← Required for Atlas
         }
     }
 }
