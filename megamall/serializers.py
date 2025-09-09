@@ -9,6 +9,7 @@ import cloudinary.uploader
 # Product Serializer
 # ----------------------------
 class ProductSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(read_only=True)
     image = serializers.ImageField(write_only=True, required=False)
     image_url = serializers.SerializerMethodField(read_only=True)
 
@@ -54,6 +55,7 @@ class ProductSerializer(serializers.ModelSerializer):
         return instance
 
 class HireItemSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(read_only=True)
     image = serializers.ImageField(write_only=True, required=False)
     image_url = serializers.SerializerMethodField(read_only=True)
 
