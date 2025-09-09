@@ -27,6 +27,8 @@ class BaseMongoDBSerializer(serializers.ModelSerializer):
 # ----------------------------
 # Base serializer with Cloudinary
 # ----------------------------
+# megamall/serializers.py
+
 class BaseCloudinarySerializer(BaseMongoDBSerializer):
     image = serializers.ImageField(write_only=True, required=False)
     image_url = serializers.CharField(read_only=True)
@@ -41,9 +43,8 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
         instance = ModelClass.objects.create(**validated_data)
 
         if image:
-            # Normalize BEFORE calling uploader
-            clean_image = normalize_uploaded_file(image)
-            result = upload_to_cloudinary(clean_image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
+            # Pass image directly to the utility
+            result = upload_to_cloudinary(image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
             instance.image_url = result.get("secure_url", "")
             instance.save()
 
@@ -56,12 +57,12 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
             setattr(instance, attr, value)
 
         if image:
-            clean_image = normalize_uploaded_file(image)
-            result = upload_to_cloudinary(clean_image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
+            result = upload_to_cloudinary(image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
             instance.image_url = result.get("secure_url", "")
 
         instance.save()
         return instance
+
 
 
 # ----------------------------
