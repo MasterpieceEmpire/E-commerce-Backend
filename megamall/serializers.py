@@ -8,9 +8,19 @@ import cloudinary.uploader
 from .utils import upload_to_cloudinary
 from cloudinary.utils import cloudinary_url
 
+
 # ----------------------------
 # Product Serializer
 # ----------------------------
+class ObjectIdField(serializers.Field):
+    """Custom field to handle MongoDB ObjectId serialization"""
+    def to_representation(self, value):
+        return str(value) if isinstance(value, ObjectId) else value
+
+    def to_internal_value(self, data):
+        return ObjectId(data)
+
+
 class BaseCloudinarySerializer(serializers.ModelSerializer):
     id = serializers.CharField(read_only=True)
     image = serializers.ImageField(write_only=True, required=False)  # file input
@@ -117,14 +127,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # ----------------------------
 # Order Item Serializer
 # ----------------------------
-class ObjectIdField(serializers.Field):
-    """Custom field to handle MongoDB ObjectId serialization"""
-    def to_representation(self, value):
-        return str(value) if isinstance(value, ObjectId) else value
-
-    def to_internal_value(self, data):
-        return ObjectId(data)
-
 
 class OrderItemSerializer(serializers.ModelSerializer):
     id = ObjectIdField(read_only=True)
