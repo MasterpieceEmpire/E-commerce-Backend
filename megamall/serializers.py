@@ -28,7 +28,7 @@ class ObjectIdField(serializers.Field):
 
 
 class BaseCloudinarySerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
+    id = ObjectIdField(read_only=True)
     image = serializers.ImageField(write_only=True, required=False)  # file input
     image_url = serializers.CharField(read_only=True)  # direct Cloudinary URL stored in DB
 
@@ -88,7 +88,7 @@ class HireItemSerializer(BaseCloudinarySerializer):
 # Category Serializer
 # ----------------------------
 class CategorySerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
+    id = ObjectIdField(read_only=True)
 
     class Meta:
         model = Category
@@ -177,7 +177,7 @@ class OrderSerializer(serializers.ModelSerializer):
 # Courier Order Serializer
 # ----------------------------
 class CourierOrderSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
+    id = ObjectIdField(read_only=True)
     parcel_action = serializers.ChoiceField(
         choices=[("send", "send"), ("receive", "receive")],
         required=False,
