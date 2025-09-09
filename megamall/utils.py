@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 def upload_to_cloudinary(file, folder='general'):
     """
     Upload a file to Cloudinary under the specified folder inside 'megamall'.
-    Accepts Django file objects or file paths.
+    Accepts Django file objects directly.
     """
     try:
         result = cloudinary.uploader.upload(
-            file,
+            file,  # ✅ Pass the file object directly
             folder=f"megamall/{folder}",
             resource_type="auto",
             use_filename=True,
