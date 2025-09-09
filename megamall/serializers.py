@@ -9,6 +9,9 @@ import cloudinary.uploader
 from .utils import upload_to_cloudinary
 from .fields import ObjectIdField
 from cloudinary.utils import cloudinary_url
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ----------------------------
 # Base Serializer with ObjectId handling
@@ -25,53 +28,90 @@ class BaseMongoDBSerializer(serializers.ModelSerializer):
         return representation
 
 # ----------------------------
-# Product Serializer
+# Product Serializer (FIXED for image handling)
 # ----------------------------
-class BaseCloudinarySerializer(BaseMongoDBSerializer):
-    image = serializers.ImageField(write_only=True, required=False)
-    image_url = serializers.CharField(read_only=True)
+class ProductSerializer(BaseMongoDBSerializer):
+    image_url = serializers.SerializerMethodField()  # Read-only field for image URL
+    image = serializers.ImageField(write_only=True, required=False)  # Write-only for uploads
 
     class Meta:
-        abstract = True
-        fields = '__all__'
+        model = Product
+        fields = ['id', 'name', 'price', 'description', 'image_url', 'image', 'category', 'in_stock', 'created_at']
+
+    def get_image_url(self, obj):
+        # Return the image URL from MongoDB if it exists
+        return obj.image if hasattr(obj, 'image') and obj.image else None
 
     def create(self, validated_data):
-        image = validated_data.pop("image", None)
-        instance = self.Meta.model.objects.create(**validated_data)
-
+        image = validated_data.pop('image', None)
+        instance = super().create(validated_data)
+        
         if image:
-            folder = getattr(self.Meta, "cloudinary_folder", "uploads")
-            result = upload_to_cloudinary(image, folder=folder)
-            instance.image_url = result["secure_url"]
-            instance.save()
-
+            try:
+                from .utils import upload_to_cloudinary
+                result = upload_to_cloudinary(image, 'products')
+                instance.image = result['secure_url']  # Store URL in MongoDB image field
+                instance.save()
+            except Exception as e:
+                logger.error(f"Failed to upload image: {str(e)}")
+        
         return instance
 
     def update(self, instance, validated_data):
-        image = validated_data.pop("image", None)
-
+        image = validated_data.pop('image', None)
+        
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-
+        
         if image:
-            folder = getattr(self.Meta, "cloudinary_folder", "uploads")
-            result = upload_to_cloudinary(image, folder=folder)
-            instance.image_url = result["secure_url"]
-
+            try:
+                from .utils import upload_to_cloudinary
+                # Delete old image if exists
+                if instance.image:
+                    import cloudinary.uploader
+                    try:
+                        public_id = instance.image.split('/')[-1].split('.')[0]
+                        cloudinary.uploader.destroy(public_id)
+                    except:
+                        pass
+                
+                # Upload new image
+                result = upload_to_cloudinary(image, 'products')
+                instance.image = result['secure_url']
+            except Exception as e:
+                logger.error(f"Failed to update image: {str(e)}")
+        
         instance.save()
         return instance
 
-class ProductSerializer(BaseCloudinarySerializer):
-    class Meta(BaseCloudinarySerializer.Meta):
-        model = Product
-        cloudinary_folder = "products"
-        fields = '__all__'
+# ----------------------------
+# HireItem Serializer (FIXED for image handling)
+# ----------------------------
+class HireItemSerializer(BaseMongoDBSerializer):
+    image_url = serializers.SerializerMethodField()
+    image = serializers.ImageField(write_only=True, required=False)
 
-class HireItemSerializer(BaseCloudinarySerializer):
-    class Meta(BaseCloudinarySerializer.Meta):
+    class Meta:
         model = HireItem
-        cloudinary_folder = "hire_items"
-        fields = '__all__'
+        fields = ['id', 'name', 'price', 'description', 'image_url', 'image', 'in_stock', 'created_at']
+
+    def get_image_url(self, obj):
+        return obj.image if hasattr(obj, 'image') and obj.image else None
+
+    def create(self, validated_data):
+        image = validated_data.pop('image', None)
+        instance = super().create(validated_data)
+        
+        if image:
+            try:
+                from .utils import upload_to_cloudinary
+                result = upload_to_cloudinary(image, 'hire_items')
+                instance.image = result['secure_url']
+                instance.save()
+            except Exception as e:
+                logger.error(f"Failed to upload image: {str(e)}")
+        
+        return instance
 
 # ----------------------------
 # Category Serializer
@@ -90,7 +130,8 @@ class GuestUserSerializer(BaseMongoDBSerializer):
         fields = ['id', 'first_name', 'last_name', 'email', 'phone', 'is_active', 'subscribed']
 
 # ----------------------------
-# megamall/serializers.py
+# ShippingAddress Serializer
+# ----------------------------
 class ShippingAddressSerializer(BaseMongoDBSerializer):
     guest_user = ObjectIdField(required=False)
 
@@ -122,22 +163,26 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 # ----------------------------
-# Order Item Serializer
+# Order Item Serializer (FIXED for product image)
 # ----------------------------
 class OrderItemSerializer(BaseMongoDBSerializer):
-    product = serializers.StringRelatedField()
-    product_image_url = serializers.ReadOnlyField(source='product.image_url')
+    product_name = serializers.ReadOnlyField(source='product.name')
+    product_price = serializers.ReadOnlyField(source='product.price')
+    product_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
+        fields = ['id', 'product', 'product_name', 'product_price', 'product_image_url', 'quantity', 'price']
+
+    def get_product_image_url(self, obj):
+        # Get image URL from product's image field in MongoDB
+        return obj.product.image if hasattr(obj.product, 'image') and obj.product.image else None
 
 # ----------------------------
 # Order Serializer
 # ----------------------------
-# megamall/serializers.py
 class OrderSerializer(BaseMongoDBSerializer):
-    guest_user = GuestUserSerializer(read_only=True)  # Use serializer instead of ObjectIdField
+    guest_user = GuestUserSerializer(read_only=True)
     shipping_address = ShippingAddressSerializer(read_only=True)
     order_items = OrderItemSerializer(many=True, read_only=True)
 
