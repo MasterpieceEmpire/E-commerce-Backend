@@ -516,7 +516,7 @@ def initiate_payment(request):
     except (TypeError, ValueError):
         return JsonResponse({"error": "Amount must be a positive number."}, status=400)
 
-    if not re.fullmatch(r"^2547\d{8}$", str(phone)):
+    if not re.fullmatch(r"^254\d{8}$", str(phone)):
         return JsonResponse({"error": "Phone number must be in format 2547XXXXXXXX."}, status=400)
 
     # Generate Access Token
