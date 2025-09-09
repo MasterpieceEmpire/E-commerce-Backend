@@ -23,7 +23,7 @@ from megamall.views import (
     initiate_payment,
     create_courier_order,
     NoSignalLoginView,
-    upload_image,
+    upload_image,  
 )
 
 # DRF Router (only for ViewSets)
@@ -57,8 +57,8 @@ api_urlpatterns = [
     # Courier
     path('courier/', create_courier_order, name='create-courier-order'),
 
-    #Upload url
-    path('upload-image/', views.upload_image, name='upload_image'),
+    # Upload url - FIXED: use the imported function directly
+    path('upload-image/', upload_image, name='upload_image'),
 ]
 
 

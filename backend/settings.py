@@ -3,11 +3,7 @@ import os
 from pathlib import Path
 from decouple import config
 from django.core.management.utils import get_random_secret_key
-
 from datetime import timedelta
-
-# Make sure you import this at the top of your file
-import django_mongodb_backend
 
 # -------------------------------------------------------------------
 # BASE DIR
@@ -46,8 +42,8 @@ AUTH_USER_MODEL = "megamall.GuestUser"
 # MIDDLEWARE
 # -------------------------------------------------------------------
 MIDDLEWARE = [
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'megamall.middleware.EarlyPatchMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -66,7 +62,7 @@ ROOT_URLCONF = "backend.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR, 'templates')],  # Add templates directory
+        "DIRS": [os.path.join(BASE_DIR, 'templates')],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -81,8 +77,21 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "backend.wsgi.application"
 
+# -------------------------------------------------------------------
+# CORS & SECURITY
+# -------------------------------------------------------------------
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "https://masterpiece-frontend.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://masterpiece-frontend.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 # Use only one authentication backend
@@ -109,16 +118,22 @@ SIMPLE_JWT = {
 }
 
 # ------------------------------------------------------------------
-# DATABASE (MongoDB Atlas only)
+# DATABASE (MongoDB Atlas)
 # ------------------------------------------------------------------
 MONGO_URI = config("MONGO_URI")
 MONGO_DB_NAME = config("MONGO_DB_NAME", default="Masterpiece")
 
 DATABASES = {
-    "default": django_mongodb_backend.parse_uri(MONGO_URI, db_name=MONGO_DB_NAME)
+    "default": {
+        "ENGINE": "django_mongodb_backend",
+        "NAME": MONGO_DB_NAME,
+        "CLIENT": {
+            "host": MONGO_URI,
+        }
+    }
 }
 
-# Session configuration - use database sessions instead of MongoDB for sessions
+# Session configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
 SESSION_COOKIE_NAME = 'sessionid'
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
@@ -138,12 +153,12 @@ USE_TZ = True
 # -------------------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # -------------------------------------------------------------------
 # DEFAULT PRIMARY KEY FIELD
 # -------------------------------------------------------------------
-DEFAULT_AUTO_FIELD = "django_mongodb_backend.fields.ObjectIdAutoField"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # -------------------------------------------------------------------
 # CLOUDINARY STORAGE CONFIGURATION
