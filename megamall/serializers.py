@@ -13,18 +13,12 @@ from cloudinary.utils import cloudinary_url
 # ----------------------------
 class BaseCloudinarySerializer(serializers.ModelSerializer):
     id = serializers.CharField(read_only=True)
-    image = serializers.ImageField(write_only=True, required=False)
-    image_url = serializers.SerializerMethodField(read_only=True)
+    image = serializers.ImageField(write_only=True, required=False)  # file input
+    image_url = serializers.CharField(read_only=True)  # direct Cloudinary URL stored in DB
 
     class Meta:
         abstract = True
         fields = '__all__'
-
-    def get_image_url(self, obj):
-        if obj.image:  # stored public_id
-            url, _ = cloudinary_url(obj.image, secure=True)
-            return url
-        return None
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
@@ -33,19 +27,20 @@ class BaseCloudinarySerializer(serializers.ModelSerializer):
         return rep
 
     def create(self, validated_data):
-        image = validated_data.pop('image', None)
+        image = validated_data.pop("image", None)
         instance = self.Meta.model.objects.create(**validated_data)
 
         if image:
             folder = getattr(self.Meta, "cloudinary_folder", "uploads")
             result = upload_to_cloudinary(image, folder=folder)
-            instance.image = result['public_id']
+            # ✅ store secure_url directly
+            instance.image_url = result["secure_url"]
             instance.save()
 
         return instance
 
     def update(self, instance, validated_data):
-        image = validated_data.pop('image', None)
+        image = validated_data.pop("image", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -53,7 +48,8 @@ class BaseCloudinarySerializer(serializers.ModelSerializer):
         if image:
             folder = getattr(self.Meta, "cloudinary_folder", "uploads")
             result = upload_to_cloudinary(image, folder=folder)
-            instance.image = result['public_id']
+            # ✅ replace with new secure_url
+            instance.image_url = result["secure_url"]
 
         instance.save()
         return instance
