@@ -368,22 +368,15 @@ def create_order(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_order_status(request, order_id):
     try:
-        # ✅ Ensure UUID type
-        order_uuid = uuid.UUID(str(order_id))
-        order = get_object_or_404(Order, id=order_uuid)
+        order_obj_id = ObjectId(order_id)
+        order = get_object_or_404(Order, id=order_obj_id)
 
         serializer = OrderSerializer(order)
         return Response(serializer.data)
-
-    except ValueError:
-        # If order_id isn’t a valid UUID
-        logger.warning(f"Invalid UUID format for order_id: {order_id}")
-        return Response({"detail": "Invalid order ID format"}, status=400)
 
     except Exception as e:
         logger.warning(f"Order status fetch failed for {order_id}: {e}")

@@ -49,8 +49,8 @@ api_urlpatterns = [
 
     # Orders
     path('orders/', create_order, name='create-order'),
-    path('orders/<uuid:order_id>/status/', get_order_status, name='order-status'),
-    path('orders/<uuid:order_id>/invoice/', invoice_pdf_view, name='invoice-pdf'),
+    path('api/orders/<str:order_id>/status/', get_order_status)
+    path('orders/<str:order_id>/invoice/', invoice_pdf_view, name='invoice-pdf'),
 
     # M-Pesa
     path('payment/mpesa/initiate/', initiate_payment, name='initiate-payment'),
