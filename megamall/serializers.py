@@ -10,6 +10,17 @@ from .utils import upload_to_cloudinary
 from .fields import ObjectIdField
 from cloudinary.utils import cloudinary_url
 
+def normalize_uploaded_file(file):
+    """
+    Ensure the file is a BytesIO stream (or path) suitable for Cloudinary.
+    """
+    if hasattr(file, "read"):
+        data = file.read()
+        stream = BytesIO(data)
+        stream.seek(0)
+        return stream
+    return file
+
 # ----------------------------
 # Base Serializer with ObjectId handling
 # ----------------------------
