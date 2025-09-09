@@ -12,23 +12,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 def upload_to_cloudinary(file, folder_name='general'):
-    """
-    Upload a file to Cloudinary with proper file handling for Django file objects
-    """
     try:
         result = cloudinary.uploader.upload(
-            file,  # ✅ Pass the file object directly
-            folder=f"megamall/{folder_name}",
+            file,
+            folder=f"megamall/{folder_name}",  # ✅ This builds megamall/product
             resource_type="auto",
             use_filename=True,
             unique_filename=True,
             overwrite=False
         )
         return result
-
     except Exception as e:
         logger.error(f"Cloudinary upload error: {str(e)}")
         raise e
+
 
 def generate_invoice_pdf(context):
     template = get_template('templates/invoice_template.html')

@@ -33,11 +33,11 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
 
     class Meta:
         abstract = True
-        fields = '__all__'
 
     def create(self, validated_data):
         image = validated_data.pop("image", None)
-        instance = self.Meta.model.objects.create(**validated_data)
+        ModelClass = self.Meta.model
+        instance = ModelClass.objects.create(**validated_data)
 
         if image:
             folder = getattr(self.Meta, "cloudinary_folder", "uploads")
@@ -60,6 +60,7 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
 
         instance.save()
         return instance
+
 
 class ProductSerializer(BaseCloudinarySerializer):
     class Meta(BaseCloudinarySerializer.Meta):
