@@ -115,16 +115,16 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # Order Item Serializer
 # ----------------------------
 class OrderItemSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)  # ✅ ObjectId to string
+    id = serializers.SerializerMethodField()
     product = serializers.StringRelatedField()
-    product_image_url = serializers.ReadOnlyField(source='product.image_url')  # ✅ FIXED
+    product_image_url = serializers.ReadOnlyField(source='product.image_url')  # ✅ use image_url field
 
     class Meta:
         model = OrderItem
         fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
-        read_only_fields = ['id']
 
-
+    def get_id(self, obj):
+        return str(obj.id)
 
 # ----------------------------
 # Order Serializer
