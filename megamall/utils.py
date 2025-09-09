@@ -14,20 +14,42 @@ logger = logging.getLogger(__name__)
 # ----------------------------
 # Cloudinary Upload Utility
 # ----------------------------
-def upload_to_cloudinary(file, folder='general'):
+def upload_to_cloudinary(file, folder='products'):
     """
-    Upload a Django file object directly to Cloudinary under megamall/<folder>.
+    Upload a file to Cloudinary with proper error handling
     """
     try:
+        # Ensure Cloudinary is configured
+        if not hasattr(settings, 'CLOUDINARY_STORAGE'):
+            raise Exception("Cloudinary is not configured")
+        
+        # Handle different file types
+        if hasattr(file, 'read'):
+            # File object - read it properly
+            if hasattr(file, 'seek') and hasattr(file, 'tell'):
+                # Reset file pointer if possible
+                current_pos = file.tell()
+                file.seek(0)
+                file_content = file.read()
+                file.seek(current_pos)  # Reset to original position
+            else:
+                file_content = file.read()
+        else:
+            # Assume it's a file path or already in the right format
+            file_content = file
+        
+        # Upload to Cloudinary
         result = cloudinary.uploader.upload(
-            file,  # ✅ Pass the file object directly — no .read(), no BytesIO
-            folder=f"megamall/{folder}",
-            resource_type="auto",
+            file_content,
+            folder=folder,
+            resource_type="auto",  # auto-detect image, video, raw
             use_filename=True,
             unique_filename=True,
             overwrite=False
         )
+        
         return result
+        
     except Exception as e:
         logger.error(f"Cloudinary upload error: {str(e)}")
         raise e
