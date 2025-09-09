@@ -519,7 +519,7 @@ def initiate_payment(request):
     # Clean the phone number - remove any non-digit characters
     cleaned_phone = re.sub(r'\D', '', str(phone))
     
-    # Convert to Safaricom format (2547XXXXXXXX)
+    # Convert to Safaricom format (254XXXXXXXXX)
     if cleaned_phone.startswith('254') and len(cleaned_phone) == 12:
         # Already in correct format: 254712345678
         formatted_phone = cleaned_phone
@@ -534,10 +534,10 @@ def initiate_payment(request):
             "error": "Phone number must be a valid Kenyan number. Examples: +254712345678, 254712345678, 0712345678"
         }, status=400)
 
-    # Final validation for Safaricom format
-    if not formatted_phone.startswith('2547') or len(formatted_phone) != 12:
+    # Final validation for Safaricom format - CHANGED FROM 2547 to 254
+    if not formatted_phone.startswith('254') or len(formatted_phone) != 12:
         return JsonResponse({
-            "error": "Phone number must start with 2547 and be 12 digits total after conversion."
+            "error": "Phone number must start with 254 and be 12 digits total after conversion."
         }, status=400)
 
     # Generate Access Token
@@ -575,7 +575,7 @@ def initiate_payment(request):
         "PartyB": shortcode,
         "PhoneNumber": int(formatted_phone),  # Use the formatted phone number
         "CallBackURL": callback_url,
-        "AccountReference": "Masterpiece Megamall ",
+        "AccountReference": "MegaMall Ltd",
         "TransactionDesc": "MegaMall Order Payment",
     }
 
