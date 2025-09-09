@@ -115,7 +115,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # Order Item Serializer
 # ----------------------------
 class OrderItemSerializer(serializers.ModelSerializer):
-    id = serializers.SerializerMethodField()
+    id = serializers.SerializerMethodField()  # ✅ force str
     product = serializers.StringRelatedField()
     product_image_url = serializers.ReadOnlyField(source='product.image_url')
 
@@ -124,8 +124,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
 
     def get_id(self, obj):
-        # Ensure ObjectId is serialized as a string
         return str(obj.id) if obj.id else None
+
 
 # ----------------------------
 # Order Serializer
@@ -134,18 +134,15 @@ class OrderSerializer(serializers.ModelSerializer):
     id = serializers.SerializerMethodField()
     order_items = OrderItemSerializer(many=True, read_only=True)
     shipping_address = ShippingAddressSerializer(read_only=True)
-    guest_user = GuestUserSerializer(read_only=True)
 
     class Meta:
         model = Order
-        fields = [
-            'id', 'shipping_address', 'guest_user',
-            'payment_method', 'total_price', 'status',
-            'created_at', 'order_items'
-        ]
+        fields = ['id', 'shipping_address', 'guest_user', 'payment_method',
+                  'total_price', 'status', 'created_at', 'order_items']
 
     def get_id(self, obj):
         return str(obj.id)
+
         
 # ----------------------------
 # Courier Order Serializer
