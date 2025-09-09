@@ -83,9 +83,6 @@ urllib.request.install_opener(
 
 logger = logging.getLogger(__name__)
 
-
-
-            
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def test_mongo_connection(request):
