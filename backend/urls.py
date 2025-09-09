@@ -24,6 +24,7 @@ from megamall.views import (
     create_courier_order,
     NoSignalLoginView,
     upload_image,  
+    test_mongo_connection,
 )
 
 # DRF Router (only for ViewSets)
@@ -59,6 +60,8 @@ api_urlpatterns = [
 
     # Upload url - FIXED: use the imported function directly
     path('upload-image/', upload_image, name='upload_image'),
+
+    path('test-mongo/', test_mongo_connection, name='test-mongo'),
 ]
 
 

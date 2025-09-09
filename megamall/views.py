@@ -81,7 +81,26 @@ urllib.request.install_opener(
 
 logger = logging.getLogger(__name__)
 
-
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def test_mongo_connection(request):
+    """Test MongoDB connection without pagination"""
+    try:
+        # Simple test - try to get database info
+        db_info = connection.database.command('dbStats')
+        return Response({
+            "status": "success",
+            "message": "MongoDB connection successful",
+            "database": db_info['db'],
+            "collections": db_info['collections']
+        })
+    except Exception as e:
+        logger.error(f"MongoDB connection failed: {str(e)}")
+        return Response({
+            "status": "error",
+            "message": "MongoDB connection failed",
+            "error": str(e)
+        }, status=503)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
