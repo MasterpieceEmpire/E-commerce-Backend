@@ -135,8 +135,9 @@ class OrderItemSerializer(BaseMongoDBSerializer):
 # ----------------------------
 # Order Serializer
 # ----------------------------
+# megamall/serializers.py
 class OrderSerializer(BaseMongoDBSerializer):
-    guest_user = ObjectIdField(read_only=True)
+    guest_user = GuestUserSerializer(read_only=True)  # Use serializer instead of ObjectIdField
     shipping_address = ShippingAddressSerializer(read_only=True)
     order_items = OrderItemSerializer(many=True, read_only=True)
 
