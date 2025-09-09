@@ -86,7 +86,10 @@ User = get_user_model()
 class GuestUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = GuestUser
-        fields = ["id", "email", "phone", "subscribed", "is_active"]
+        fields = [
+            "id", "first_name", "last_name",  # ✅ added
+            "email", "phone", "subscribed", "is_active"
+        ]
 
 # ----------------------------
 # Shipping Address Serializer

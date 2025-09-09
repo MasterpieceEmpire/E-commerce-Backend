@@ -33,6 +33,8 @@ class GuestUserManager(BaseUserManager):
 class GuestUser(AbstractBaseUser, PermissionsMixin):
     id = models.CharField(primary_key=True, max_length=24, default=lambda: str(ObjectId()), editable=False)
     email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=100, blank=True, null=True)  # ✅ added
+    last_name = models.CharField(max_length=100, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     subscribed = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
