@@ -16,22 +16,20 @@ logger = logging.getLogger(__name__)
 # ----------------------------
 def upload_to_cloudinary(file, folder="general"):
     try:
-        # Ensure file is in-memory bytes
+        # If it's a Django UploadedFile, read into BytesIO
         if hasattr(file, "read"):
-            file_data = file.read()
-            file_stream = BytesIO(file_data)
-        else:
-            file_stream = file  # already a path or raw bytes
+            file = BytesIO(file.read())
 
         result = cloudinary.uploader.upload(
-            file_stream,
+            file,   # ✅ don't use file=file
             folder=folder,
             resource_type="auto",
             overwrite=True,
         )
         return result
     except Exception as e:
-        raise e
+        logger.error(f"Cloudinary upload failed: {e}")
+        raise
 
 
 # ----------------------------
