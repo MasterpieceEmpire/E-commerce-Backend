@@ -6,6 +6,7 @@ from django.contrib.auth.hashers import make_password
 from .models import Product, Category, GuestUser, ShippingAddress, Order, OrderItem, CourierOrder, HireItem
 import cloudinary.uploader
 from .utils import upload_to_cloudinary
+from .fields import ObjectIdField
 from cloudinary.utils import cloudinary_url
 
 
@@ -114,7 +115,21 @@ class ShippingAddressSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ShippingAddress
-        fields = ['all']
+        fields = [
+            'id',
+            'guest_user',
+            'deliveryMethod',
+            'selectedStoreId',
+            'collectorName',
+            'collectorPhone',
+            'full_name',
+            'address',
+            'city',
+            'postal_code',
+            'country',
+            'created_at',
+        ]
+        read_only_fields = ['created_at']
 
 
 # ----------------------------
