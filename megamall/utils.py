@@ -15,16 +15,24 @@ logger = logging.getLogger(__name__)
 # Cloudinary Upload Utility
 # ----------------------------
 def upload_to_cloudinary(file, folder="general"):
+    """
+    Upload a Django UploadedFile (InMemory or Temporary) to Cloudinary safely.
+    """
     try:
-        # If it's a Django UploadedFile, read into BytesIO
+        # Always normalize the file to BytesIO to avoid 'fields and body' error
         if hasattr(file, "read"):
-            file = BytesIO(file.read())
+            file_data = file.read()
+            file_stream = BytesIO(file_data)
+        else:
+            file_stream = file  # already bytes or path
 
         result = cloudinary.uploader.upload(
-            file,   # ✅ don't use file=file
+            file_stream,   # ✅ pass as positional, not file=file
             folder=folder,
             resource_type="auto",
-            overwrite=True,
+            use_filename=True,
+            unique_filename=True,
+            overwrite=False,
         )
         return result
     except Exception as e:
