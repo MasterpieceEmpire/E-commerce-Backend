@@ -20,9 +20,8 @@ def upload_to_cloudinary(file, folder='products'):
     Works with Django InMemoryUploadedFile and TemporaryUploadedFile.
     """
     try:
-        # If it's a Django UploadedFile, Cloudinary can handle it directly
         result = cloudinary.uploader.upload(
-            file,   # <-- no "file=" kwarg
+            file,   # <-- ONLY positional argument, no file=file
             folder=folder,
             resource_type="image",
             use_filename=True,
