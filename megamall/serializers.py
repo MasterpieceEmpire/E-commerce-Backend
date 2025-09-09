@@ -1,104 +1,76 @@
+from bson import ObjectId
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.hashers import make_password
 from .models import Product, Category, GuestUser, ShippingAddress, Order, OrderItem, CourierOrder, HireItem
 import cloudinary.uploader
+from .utils import upload_to_cloudinary
+from cloudinary.utils import cloudinary_url
 
 # ----------------------------
 # Product Serializer
 # ----------------------------
-class ProductSerializer(serializers.ModelSerializer):
+class BaseCloudinarySerializer(serializers.ModelSerializer):
     id = serializers.CharField(read_only=True)
     image = serializers.ImageField(write_only=True, required=False)
     image_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
+        abstract = True
+        fields = '__all__'
+
+    def get_image_url(self, obj):
+        if obj.image:  # stored public_id
+            url, _ = cloudinary_url(obj.image, secure=True)
+            return url
+        return None
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        if isinstance(instance.id, ObjectId):
+            rep['id'] = str(instance.id)
+        return rep
+
+    def create(self, validated_data):
+        image = validated_data.pop('image', None)
+        instance = self.Meta.model.objects.create(**validated_data)
+
+        if image:
+            folder = getattr(self.Meta, "cloudinary_folder", "uploads")
+            result = upload_to_cloudinary(image, folder=folder)
+            instance.image = result['public_id']
+            instance.save()
+
+        return instance
+
+    def update(self, instance, validated_data):
+        image = validated_data.pop('image', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if image:
+            folder = getattr(self.Meta, "cloudinary_folder", "uploads")
+            result = upload_to_cloudinary(image, folder=folder)
+            instance.image = result['public_id']
+
+        instance.save()
+        return instance
+
+
+class ProductSerializer(BaseCloudinarySerializer):
+    class Meta(BaseCloudinarySerializer.Meta):
         model = Product
+        cloudinary_folder = "products"
         fields = '__all__'
 
-    def get_image_url(self, obj):
-        if obj.image:
-            return obj.image.url
-        return None
 
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        if isinstance(instance.id, ObjectId):
-            rep['id'] = str(instance.id)
-        return rep
-
-    def create(self, validated_data):
-        image = validated_data.pop('image', None)
-        product = Product.objects.create(**validated_data)
-
-        if image:
-            from .utils import upload_to_cloudinary
-            result = upload_to_cloudinary(image, 'products')
-            product.image = result['public_id']
-            product.save()
-
-        return product
-
-    def update(self, instance, validated_data):
-        image = validated_data.pop('image', None)
-
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        if image:
-            from .utils import upload_to_cloudinary
-            result = upload_to_cloudinary(image, 'products')
-            instance.image = result['public_id']
-
-        instance.save()
-        return instance
-
-class HireItemSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)
-    image = serializers.ImageField(write_only=True, required=False)
-    image_url = serializers.SerializerMethodField(read_only=True)
-
-    class Meta:
+class HireItemSerializer(BaseCloudinarySerializer):
+    class Meta(BaseCloudinarySerializer.Meta):
         model = HireItem
+        cloudinary_folder = "hire_items"
         fields = '__all__'
-
-    def get_image_url(self, obj):
-        if obj.image:
-            return obj.image.url
-        return None
-
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        if isinstance(instance.id, ObjectId):
-            rep['id'] = str(instance.id)
-        return rep
-
-    def create(self, validated_data):
-        image = validated_data.pop('image', None)
-        hire_item = HireItem.objects.create(**validated_data)
-
-        if image:
-            from .utils import upload_to_cloudinary
-            result = upload_to_cloudinary(image, 'hire_items')
-            hire_item.image = result['public_id']
-            hire_item.save()
-
-        return hire_item
-
-    def update(self, instance, validated_data):
-        image = validated_data.pop('image', None)
-
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        if image:
-            from .utils import upload_to_cloudinary
-            result = upload_to_cloudinary(image, 'hire_items')
-            instance.image = result['public_id']
-
-        instance.save()
-        return instance
 
 # ----------------------------
 # Category Serializer

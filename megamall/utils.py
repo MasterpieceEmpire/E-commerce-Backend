@@ -11,48 +11,46 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def upload_to_cloudinary(file, folder_name='general'):
+import cloudinary.uploader
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def upload_to_cloudinary(file, folder="general", resource_type="auto"):
     """
-    Upload a file to Cloudinary with proper file handling for Django file objects
+    Upload a file (image, video, pdf, etc.) to Cloudinary.
+    Handles both Django file objects and raw file paths/bytes.
     """
+
     try:
-        # Handle different types of file inputs
-        if hasattr(file, 'read'):
-            # If it's a file-like object (InMemoryUploadedFile, TemporaryUploadedFile)
-            if hasattr(file, 'seek'):
-                file.seek(0)  # Reset file pointer to beginning
-            
-            # Read the file content and upload
-            file_content = file.read()
-            result = cloudinary.uploader.upload(
-                file_content,
-                folder=f"megamall/{folder_name}",
-                resource_type="auto",
-                use_filename=True,
-                unique_filename=True,
-                overwrite=False
-            )
-            
-            # Reset file pointer if needed for other operations
-            if hasattr(file, 'seek'):
+        upload_options = {
+            "folder": f"megamall/{folder}",
+            "resource_type": resource_type,
+            "use_filename": True,
+            "unique_filename": True,
+            "overwrite": False,
+        }
+
+        # Handle file-like objects (InMemoryUploadedFile, TemporaryUploadedFile, BytesIO, etc.)
+        if hasattr(file, "read"):
+            if hasattr(file, "seek"):
+                file.seek(0)  # reset pointer
+            result = cloudinary.uploader.upload(file.read(), **upload_options)
+
+            # Reset pointer in case the file is reused elsewhere
+            if hasattr(file, "seek"):
                 file.seek(0)
-                
         else:
-            # If it's a file path or other type
-            result = cloudinary.uploader.upload(
-                file,
-                folder=f"megamall/{folder_name}",
-                resource_type="auto",
-                use_filename=True,
-                unique_filename=True,
-                overwrite=False
-            )
-        
+            # Handle direct file paths or raw bytes
+            result = cloudinary.uploader.upload(file, **upload_options)
+
         return result
-        
+
     except Exception as e:
-        logger.error(f"Cloudinary upload error: {str(e)}")
+        logger.error(f"Cloudinary upload error in folder '{folder}': {str(e)}")
         raise e
+
 
 
 def generate_invoice_pdf(context):

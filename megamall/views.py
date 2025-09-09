@@ -183,9 +183,12 @@ class ProductView(viewsets.ModelViewSet):
 
     def get_queryset(self):
         category_slug = self.request.query_params.get("category")
+        queryset = Product.objects.all()
+
         if category_slug:
-            return Product.objects.filter(category__slug=category_slug)
-        return Product.objects.all()
+            queryset = queryset.filter(category__slug=category_slug)
+
+        return queryset.order_by('_id')  # ✅ Ensures consistent pagination with MongoDB
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -238,8 +241,10 @@ class ShippingAddressViewSet(viewsets.ModelViewSet):
 
 
 class HireItemViewSet(viewsets.ModelViewSet):
-    queryset = HireItem.objects.all()
     serializer_class = HireItemSerializer
+
+    def get_queryset(self):
+        return HireItem.objects.all().order_by('_id')  # ✅ Ensures pagination consistency with MongoDB
 
     def get_serializer_context(self):
         return {'request': self.request}
