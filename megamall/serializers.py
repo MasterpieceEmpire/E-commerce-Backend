@@ -90,10 +90,9 @@ class GuestUserSerializer(BaseMongoDBSerializer):
         fields = ['id', 'first_name', 'last_name', 'email', 'phone', 'is_active', 'subscribed']
 
 # ----------------------------
-# Shipping Address Serializer
-# ----------------------------
+# megamall/serializers.py
 class ShippingAddressSerializer(BaseMongoDBSerializer):
-    guest_user = ObjectIdField()
+    guest_user = ObjectIdField(required=False)
 
     class Meta:
         model = ShippingAddress
@@ -103,6 +102,12 @@ class ShippingAddressSerializer(BaseMongoDBSerializer):
             'city', 'postal_code', 'country', 'created_at'
         ]
         read_only_fields = ['created_at']
+
+    def create(self, validated_data):
+        # Auto-set guest_user from request if not provided
+        if 'guest_user' not in validated_data and hasattr(self.context.get('request'), 'user'):
+            validated_data['guest_user'] = self.context['request'].user
+        return super().create(validated_data)
 
 # ----------------------------
 # Token Serializer
