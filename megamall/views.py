@@ -185,42 +185,28 @@ class NoSignalLoginView(LoginView):
 
 class ProductView(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
-    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Add JSONParser
+    parser_classes = [MultiPartParser, FormParser]  # keep only multipart/form parsers
 
     def get_queryset(self):
         category_slug = self.request.query_params.get("category")
         queryset = Product.objects.all()
-
         if category_slug:
             queryset = queryset.filter(category__slug=category_slug)
-
         return queryset.order_by('-id')
 
     def get_serializer_context(self):
         return {'request': self.request}
 
     def create(self, request, *args, **kwargs):
-        # Handle both form data and JSON
-        if request.content_type == 'application/json':
-            # For JSON requests, use request.data directly
-            serializer = self.get_serializer(data=request.data)
-        else:
-            # For form data, handle files properly
-            data = request.POST.copy()
-            files = request.FILES
-            
-            # Merge data and files
-            mutable_data = data.copy()
-            if 'image' in files:
-                mutable_data['image'] = files['image']
-                
-            serializer = self.get_serializer(data=mutable_data)
-        
+        """
+        Let DRF parse multipart/form-data and give us request.data (includes files).
+        Avoid manual merging of POST and FILES — that produced tricky edge cases.
+        """
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
 
 class CategoryView(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -270,7 +256,7 @@ class ShippingAddressViewSet(viewsets.ModelViewSet):
 
 class HireItemViewSet(viewsets.ModelViewSet):
     serializer_class = HireItemSerializer
-    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Add JSONParser
+    parser_classes = [MultiPartParser, FormParser]  # keep only multipart/form parsers
 
     def get_queryset(self):
         return HireItem.objects.all().order_by('-id')
@@ -279,19 +265,7 @@ class HireItemViewSet(viewsets.ModelViewSet):
         return {'request': self.request}
 
     def create(self, request, *args, **kwargs):
-        # Handle both form data and JSON
-        if request.content_type == 'application/json':
-            serializer = self.get_serializer(data=request.data)
-        else:
-            data = request.POST.copy()
-            files = request.FILES
-            
-            mutable_data = data.copy()
-            if 'image' in files:
-                mutable_data['image'] = files['image']
-                
-            serializer = self.get_serializer(data=mutable_data)
-        
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)

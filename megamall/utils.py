@@ -23,11 +23,12 @@ def upload_to_cloudinary(file, folder="general"):
         if hasattr(file, "read"):
             file_data = file.read()
             file_stream = BytesIO(file_data)
+            file_stream.seek(0)  # <<< IMPORTANT: reset pointer
         else:
             file_stream = file  # already bytes or path
 
         result = cloudinary.uploader.upload(
-            file_stream,   # ✅ pass as positional, not file=file
+            file_stream,   # pass as positional, not file=file
             folder=folder,
             resource_type="auto",
             use_filename=True,

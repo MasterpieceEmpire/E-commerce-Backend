@@ -14,19 +14,17 @@ from cloudinary.utils import cloudinary_url
 # Base Serializer with ObjectId handling
 # ----------------------------
 class BaseMongoDBSerializer(serializers.ModelSerializer):
-    # Force `id` to be returned as string instead of int
     id = serializers.CharField(read_only=True)
 
     def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        # Ensure all ObjectId fields are converted to strings
-        for field_name, field_value in representation.items():
-            if isinstance(field_value, ObjectId):
-                representation[field_name] = str(field_value)
-        return representation
+        rep = super().to_representation(instance)
+        for key, value in rep.items():
+            if isinstance(value, ObjectId):
+                rep[key] = str(value)
+        return rep
 
 # ----------------------------
-# Product & HireItem Serializers (with Cloudinary support)
+# Base serializer with Cloudinary
 # ----------------------------
 class BaseCloudinarySerializer(BaseMongoDBSerializer):
     image = serializers.ImageField(write_only=True, required=False)
@@ -38,12 +36,14 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
     def create(self, validated_data):
         image = validated_data.pop("image", None)
         ModelClass = self.Meta.model
+
+        # Create the instance without the image first
         instance = ModelClass.objects.create(**validated_data)
 
         if image:
-            folder = getattr(self.Meta, "cloudinary_folder", "uploads")
-            result = upload_to_cloudinary(image, folder=folder)
-            instance.image_url = result["secure_url"]
+            # Upload safely to Cloudinary
+            result = upload_to_cloudinary(image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
+            instance.image_url = result.get("secure_url", "")
             instance.save()
 
         return instance
@@ -51,30 +51,35 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
     def update(self, instance, validated_data):
         image = validated_data.pop("image", None)
 
+        # Update other fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
         if image:
-            folder = getattr(self.Meta, "cloudinary_folder", "uploads")
-            result = upload_to_cloudinary(image, folder=folder)
-            instance.image_url = result["secure_url"]
+            # Upload safely to Cloudinary
+            result = upload_to_cloudinary(image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
+            instance.image_url = result.get("secure_url", "")
 
         instance.save()
         return instance
 
-
+# ----------------------------
+# Product Serializer
+# ----------------------------
 class ProductSerializer(BaseCloudinarySerializer):
     class Meta(BaseCloudinarySerializer.Meta):
         model = Product
         cloudinary_folder = "products"
-        fields = '__all__'
+        fields = "__all__"
 
-
+# ----------------------------
+# HireItem Serializer
+# ----------------------------
 class HireItemSerializer(BaseCloudinarySerializer):
     class Meta(BaseCloudinarySerializer.Meta):
         model = HireItem
         cloudinary_folder = "hire_items"
-        fields = '__all__'
+        fields = "__all__"
 
 # ----------------------------
 # Category Serializer
