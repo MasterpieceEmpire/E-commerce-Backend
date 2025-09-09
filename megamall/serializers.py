@@ -115,14 +115,15 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # Order Item Serializer
 # ----------------------------
 class OrderItemSerializer(serializers.ModelSerializer):
-    id = serializers.CharField(read_only=True)  # ✅ Force ObjectId to string
+    id = serializers.CharField(read_only=True)  # ✅ ObjectId to string
     product = serializers.StringRelatedField()
-    product_image_url = serializers.ReadOnlyField(source='product.image.url')
+    product_image_url = serializers.ReadOnlyField(source='product.image_url')  # ✅ FIXED
 
     class Meta:
         model = OrderItem
         fields = ['id', 'product', 'product_image_url', 'quantity', 'price']
         read_only_fields = ['id']
+
 
 
 # ----------------------------
@@ -131,11 +132,17 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     order_items = OrderItemSerializer(many=True, read_only=True)
     shipping_address = ShippingAddressSerializer(read_only=True)
+    guest_user = GuestUserSerializer(read_only=True)  # ✅ Nicer output
 
     class Meta:
         model = Order
-        fields = ['id', 'shipping_address', 'guest_user', 'payment_method', 'total_price', 'status', 'created_at', 'order_items']
+        fields = [
+            'id', 'shipping_address', 'guest_user',
+            'payment_method', 'total_price', 'status',
+            'created_at', 'order_items'
+        ]
         read_only_fields = ['id']
+
 
 # ----------------------------
 # Courier Order Serializer

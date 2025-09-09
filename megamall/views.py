@@ -372,9 +372,18 @@ def create_order(request):
 @permission_classes([AllowAny])
 def get_order_status(request, order_id):
     try:
-        order = get_object_or_404(Order, id=order_id)
+        # ✅ Ensure UUID type
+        order_uuid = uuid.UUID(str(order_id))
+        order = get_object_or_404(Order, id=order_uuid)
+
         serializer = OrderSerializer(order)
         return Response(serializer.data)
+
+    except ValueError:
+        # If order_id isn’t a valid UUID
+        logger.warning(f"Invalid UUID format for order_id: {order_id}")
+        return Response({"detail": "Invalid order ID format"}, status=400)
+
     except Exception as e:
         logger.warning(f"Order status fetch failed for {order_id}: {e}")
         return Response({"detail": f"Order not found: {str(e)}"}, status=404)
