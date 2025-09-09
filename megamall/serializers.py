@@ -9,91 +9,88 @@ import cloudinary.uploader
 # Product Serializer
 # ----------------------------
 class ProductSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
-
+    image = serializers.ImageField(write_only=True, required=False)
+    image_url = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'image', 'image_url', 'description', 'category']
-
+        fields = '__all__'
+    
     def get_image_url(self, obj):
-        return obj.image.url if obj.image else None
-
+        if obj.image:
+            return obj.image.url
+        return None
+    
     def create(self, validated_data):
-        image_file = validated_data.pop('image', None)
-        if image_file:
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    image_file,
-                    folder="products",
-                    unique_filename=True,
-                    resource_type="image"
-                )
-                validated_data['image'] = upload_result.get('public_id')
-            except Exception as e:
-                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
-        return super().create(validated_data)
-
+        image = validated_data.pop('image', None)
+        product = Product.objects.create(**validated_data)
+        
+        if image:
+            # Upload to Cloudinary
+            from .utils import upload_to_cloudinary
+            result = upload_to_cloudinary(image, 'products')
+            product.image = result['public_id']
+            product.save()
+        
+        return product
+    
     def update(self, instance, validated_data):
-        image_file = validated_data.pop('image', None)
-        if image_file:
-            if instance.image:
-                cloudinary.uploader.destroy(instance.image)
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    image_file,
-                    folder="products",
-                    unique_filename=True,
-                    resource_type="image"
-                )
-                validated_data['image'] = upload_result.get('public_id')
-            except Exception as e:
-                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
-        return super().update(instance, validated_data)
+        image = validated_data.pop('image', None)
+        
+        # Update other fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        if image:
+            # Upload to Cloudinary
+            from .utils import upload_to_cloudinary
+            result = upload_to_cloudinary(image, 'products')
+            instance.image = result['public_id']
+        
+        instance.save()
+        return instance
 
-# ----------------------------
-# HireItem Serializer
-# ----------------------------
 class HireItemSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
-
+    image = serializers.ImageField(write_only=True, required=False)
+    image_url = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = HireItem
-        fields = ['id', 'name', 'hire_price_per_day', 'hire_price_per_hour', 'image', 'image_url', 'details']
-
+        fields = '__all__'
+    
     def get_image_url(self, obj):
-        return obj.image.url if obj.image else None
-
+        if obj.image:
+            return obj.image.url
+        return None
+    
     def create(self, validated_data):
-        image_file = validated_data.pop('image', None)
-        if image_file:
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    image_file,
-                    folder="hire_items",
-                    unique_filename=True,
-                    resource_type="image"
-                )
-                validated_data['image'] = upload_result.get('public_id')
-            except Exception as e:
-                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
-        return super().create(validated_data)
-
+        image = validated_data.pop('image', None)
+        hire_item = HireItem.objects.create(**validated_data)
+        
+        if image:
+            # Upload to Cloudinary
+            from .utils import upload_to_cloudinary
+            result = upload_to_cloudinary(image, 'hire_items')
+            hire_item.image = result['public_id']
+            hire_item.save()
+        
+        return hire_item
+    
     def update(self, instance, validated_data):
-        image_file = validated_data.pop('image', None)
-        if image_file:
-            if instance.image:
-                cloudinary.uploader.destroy(instance.image)
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    image_file,
-                    folder="hire_items",
-                    unique_filename=True,
-                    resource_type="image"
-                )
-                validated_data['image'] = upload_result.get('public_id')
-            except Exception as e:
-                raise serializers.ValidationError({"image": f"Image upload failed: {str(e)}"})
-        return super().update(instance, validated_data)
+        image = validated_data.pop('image', None)
+        
+        # Update other fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        if image:
+            # Upload to Cloudinary
+            from .utils import upload_to_cloudinary
+            result = upload_to_cloudinary(image, 'hire_items')
+            instance.image = result['public_id']
+        
+        instance.save()
+        return instance
 
 # ----------------------------
 # Category Serializer

@@ -6,6 +6,26 @@ from django.core.mail import EmailMessage
 from django.conf import settings
 from django.utils.html import strip_tags
 
+import cloudinary.uploader
+import logging
+
+logger = logging.getLogger(__name__)
+
+def upload_to_cloudinary(file, folder_name):
+    """
+    Upload a file to Cloudinary
+    """
+    try:
+        result = cloudinary.uploader.upload(
+            file,
+            folder=f"megamall/{folder_name}",
+            resource_type="auto"
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Cloudinary upload error: {str(e)}")
+        raise
+
 
 def generate_invoice_pdf(context):
     template = get_template('templates/invoice_template.html')

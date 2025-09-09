@@ -56,6 +56,9 @@ api_urlpatterns = [
 
     # Courier
     path('courier/', create_courier_order, name='create-courier-order'),
+
+    #Upload url
+    path('api/upload-image/', views.upload_image, name='upload_image'),
 ]
 
 

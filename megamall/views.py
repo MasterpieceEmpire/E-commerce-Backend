@@ -97,6 +97,33 @@ import cloudinary.uploader
 import cloudinary.api
 from cloudinary import exceptions
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_image(request):
+    """
+    Upload an image to Cloudinary and return the URL
+    """
+    try:
+        image_file = request.FILES.get('image')
+        folder = request.data.get('folder', 'general')
+        
+        if not image_file:
+            return Response({"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Upload to Cloudinary
+        from .utils import upload_to_cloudinary
+        result = upload_to_cloudinary(image_file, folder)
+        
+        return Response({
+            "url": result['secure_url'],
+            "public_id": result['public_id'],
+            "format": result['format']
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Image upload error: {str(e)}")
+        return Response({"error": "Failed to upload image"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 def cloudinary_debug(request):
     from cloudinary_storage.storage import MediaCloudinaryStorage
     storage = MediaCloudinaryStorage()
