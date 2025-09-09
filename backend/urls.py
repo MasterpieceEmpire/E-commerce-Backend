@@ -25,7 +25,6 @@ from megamall.views import (
     NoSignalLoginView,
     upload_image,  
     test_mongo_connection,
-    OrderViewSet,
 )
 
 # DRF Router (only for ViewSets)
