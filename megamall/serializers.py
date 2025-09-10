@@ -31,25 +31,30 @@ class BaseMongoDBSerializer(serializers.ModelSerializer):
 
 class BaseCloudinarySerializer(BaseMongoDBSerializer):
     image = serializers.ImageField(write_only=True, required=False)
-    image_url = serializers.CharField(read_only=True)
+    image_url = serializers.CharField(required=False)  # ✅ Make writable to accept direct URLs
 
     class Meta:
         abstract = True
 
     def create(self, validated_data):
         image = validated_data.pop('image', None)
+        image_url = validated_data.pop('image_url', None)  # ✅ Pop it to avoid duplicate assignment
+
         ModelClass = self.Meta.model
         instance = ModelClass.objects.create(**validated_data)
 
         if image:
             result = upload_to_cloudinary(image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
             instance.image_url = result.get("secure_url", "")
-            instance.save()
+        elif image_url:
+            instance.image_url = image_url
 
+        instance.save()
         return instance
 
     def update(self, instance, validated_data):
         image = validated_data.pop("image", None)
+        image_url = validated_data.pop("image_url", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -57,9 +62,12 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
         if image:
             result = upload_to_cloudinary(image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
             instance.image_url = result.get("secure_url", "")
+        elif image_url:
+            instance.image_url = image_url
 
         instance.save()
         return instance
+
 
 
 
