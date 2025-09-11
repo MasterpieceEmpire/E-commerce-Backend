@@ -509,20 +509,15 @@ KOPOKOPO_BASE_URL = (
 kopokopo_token_cache = {"token": None, "expires_at": None}
 
 def get_kopokopo_access_token():
-    global kopokopo_token_cache
-
-    # If cached and not expired, reuse
-    if (
-        kopokopo_token_cache["token"]
-        and kopokopo_token_cache["expires_at"]
-        and kopokopo_token_cache["expires_at"] > datetime.utcnow()
-    ):
-        return kopokopo_token_cache["token"]
-
     url = f"{KOPOKOPO_BASE_URL}/oauth/token"
-    client_id = config("KOPOKOPO_CLIENT_ID")
-    client_secret = config("KOPOKOPO_CLIENT_SECRET")
+    client_id = config("KOPOKOPO_CLIENT_ID", default=None)
+    client_secret = config("KOPOKOPO_CLIENT_SECRET", default=None)
 
+    if not client_id or not client_secret:
+        logger.error("KopoKopo client_id or client_secret is missing")
+        return None
+
+    # Encode client_id:client_secret in base64
     auth_str = f"{client_id}:{client_secret}"
     b64_auth = base64.b64encode(auth_str.encode()).decode()
 
@@ -535,18 +530,17 @@ def get_kopokopo_access_token():
     try:
         logger.info(f"Requesting KopoKopo token from: {url}")
         response = requests.post(url, data=payload, headers=headers)
-        logger.info(f"KopoKopo token response: {response.status_code} - {response.text}")
+        logger.info(f"KopoKopo raw response: {response.status_code} - {response.text}")
+
         response.raise_for_status()
 
-        data = response.json()
-        token = data.get("access_token")
-        expires_in = data.get("expires_in", 3600)
+        try:
+            data = response.json()
+        except ValueError:
+            logger.error(f"Response was not JSON: {response.text}")
+            return None
 
-        # Cache token with expiry
-        kopokopo_token_cache["token"] = token
-        kopokopo_token_cache["expires_at"] = datetime.utcnow() + timedelta(seconds=expires_in - 60)
-
-        return token
+        return data.get("access_token")
     except Exception as e:
         logger.error(f"KopoKopo token error: {e}")
         return None
