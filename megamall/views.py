@@ -553,62 +553,53 @@ def get_kopokopo_access_token():
 
 # 🔹 Initiate STK Push Payment
 @api_view(["POST"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def initiate_payment(request):
     phone = request.data.get("phone")
     amount = request.data.get("amount")
+    order_id = request.data.get("order_id", "")
 
     if not phone or not amount:
         return JsonResponse({"error": "Phone and amount are required"}, status=400)
 
-    # Get access token
     access_token = get_kopokopo_access_token()
     if not access_token:
         return JsonResponse({"error": "Failed to get access token"}, status=500)
 
-    api_key = config("KOPOKOPO_API_KEY")
-
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-        "ApiKey": api_key,
-    }
-
-    # ✅ CORRECTED: Use the proper M-Pesa STK Push endpoint
     payload = {
-        "payment_channel": "M-PESA STK Push",
-        "till_number": config("KOPOKOPO_TILL_NUMBER"),
-        "subscriber": {
-            "first_name": request.user.first_name if request.user.is_authenticated else "Guest",
-            "last_name": request.user.last_name if request.user.is_authenticated else "User",
-            "phone_number": phone,
-        },
-        "amount": str(amount),
-        "currency": "KES",
+        "access_token": access_token,
         "callback_url": config("KOPOKOPO_CALLBACK_URL"),
+        "first_name": request.user.first_name,
+        "last_name": request.user.last_name,
+        "email": request.user.email,
+        "payment_channel": "MPESA",
+        "phone_number": phone,
+        "till_number": config("KOPOKOPO_TILL_NUMBER"),
+        "amount": str(amount),
         "metadata": {
-            "customer_id": str(request.user.id) if request.user.is_authenticated else "guest",
-            "order_id": request.data.get("order_id", "")
+            "customerId": str(request.user.id),
+            "reference": order_id,
+            "notes": f"Payment for invoice {order_id}"
         }
     }
 
-    # ✅ CORRECTED ENDPOINT: Use the M-Pesa specific endpoint
-    url = f"{KOPOKOPO_BASE_URL}/api/v1/mpesa_stk_push"
+    url = f"{config('KOPOKOPO_BASE_URL')}/api/v1/incoming_payments"
+    headers = {
+        "Content-Type": "application/json"
+    }
 
     try:
         response = requests.post(url, json=payload, headers=headers)
         logger.info(f"KopoKopo Payment Response: {response.status_code} - {response.text}")
 
         if response.status_code in [200, 201, 202]:
-            return JsonResponse(
-                {
-                    "message": "Payment request sent. Check your phone to complete the transaction.",
-                    "kopokopo_response": response.json(),
-                },
-                status=200,
-            )
+            location_url = response.headers.get("Location")
+            return JsonResponse({
+                "message": "Payment request sent. Check your phone to complete the transaction.",
+                "location_url": location_url,
+                "kopokopo_response": response.json()
+            }, status=200)
         else:
-            # Handle error response gracefully
             try:
                 return JsonResponse(response.json(), status=response.status_code)
             except ValueError:
