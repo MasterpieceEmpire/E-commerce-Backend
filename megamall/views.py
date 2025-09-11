@@ -556,97 +556,74 @@ def get_kopokopo_access_token():
 def initiate_payment(request):
     phone = request.data.get("phone")
     amount = request.data.get("amount")
-    order_id = request.data.get("order_id") or "guest-order"
+    order_id = request.data.get("order_id")  # optional
 
     if not phone or not amount:
-        return JsonResponse({"error": "Phone and amount are required."}, status=400)
+        return JsonResponse({"error": "Phone and amount are required"}, status=400)
 
-    # ✅ Normalize phone number
-    phone = phone.strip()
-    if phone.startswith("0"):
-        phone = f"+254{phone[1:]}"
-    elif phone.startswith("254"):
-        phone = f"+{phone}"
-    elif not phone.startswith("+254"):
-        phone = f"+254{phone}"
-
-    # ✅ Get token
-    access_token = get_kopokopo_access_token()
-    if not access_token:
-        return JsonResponse({"error": "Payment service unavailable. Try again later."}, status=503)
-
-    api_key = config("KOPOKOPO_API_KEY")
-    till_number = config("KOPOKOPO_TILL_NUMBER")
-    callback_url = config("KOPOKOPO_CALLBACK_URL")
-
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-        "ApiKey": api_key,
-    }
-
-    first_name = request.data.get("first_name") or getattr(request.user, 'first_name', 'Guest') or 'Guest'
-    last_name = request.data.get("last_name") or getattr(request.user, 'last_name', 'User') or 'User'
-    email = getattr(request.user, 'email', 'guest@example.com') or 'guest@example.com'
-    customer_id = str(request.user.id) if request.user.is_authenticated else "guest"
+    # ✅ Normalize values
+    phone = phone.replace("+", "")  # remove + sign
+    amount = str(amount)            # force string
 
     try:
-        amount_float = float(amount)
-    except (ValueError, TypeError):
-        return JsonResponse({"error": "Invalid amount provided."}, status=400)
+        # 1. Get Access Token
+        token_url = f"{KOPOKOPO_BASE_URL}/oauth/token"
+        token_payload = {
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "grant_type": "client_credentials"
+        }
+        token_res = requests.post(token_url, data=token_payload)
+        token_data = token_res.json()
+        access_token = token_data.get("access_token")
 
-    payload = {
-    "data": {
-        "type": "incoming_payment",
-        "attributes": {
-            "amount": amount_float,
-            "currency": "KES",
-            "payment_channel": "MPESA",
-            "phone_number": phone,
-            "callback_url": callback_url,
-            "metadata": {
-                "customerId": customer_id,
-                "reference": order_id,
-                "notes": f"Payment for order {order_id}"
+        if not access_token:
+            logger.error(f"KopoKopo token error: {token_data}")
+            return JsonResponse({"error": "Failed to get access token"}, status=500)
+
+        logger.info(f"KopoKopo token response: {token_res.status_code} - {token_data}")
+
+        # 2. Initiate STK Push
+        headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        payment_url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
+
+        payload = {
+            "data": {
+                "type": "incoming_payment",
+                "attributes": {
+                    "amount": amount,
+                    "currency": "KES",
+                    "payment_channel": "MPESA",
+                    "phone_number": phone,
+                    "callback_url": "https://e-commerce-backend-7yft.onrender.com/api/kopokopo/callback",
+                    "metadata": {
+                        "reference": order_id or "order"
+                    }
+                }
             }
         }
-    }
-    }
 
-    url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
-    logger.info(f"KopoKopo Request → {url}")
-    logger.info(f"Payload → {payload}")
+        logger.info(f"KopoKopo Request → {payment_url}")
+        logger.info(f"Payload → {payload}")
 
-    try:
-        response = requests.post(url, json=payload, headers=headers)
-        logger.info(f"KopoKopo Response {response.status_code}")
-        logger.info(f"Response Headers: {response.headers}")
+        payment_res = requests.post(payment_url, json=payload, headers=headers)
 
-        if 200 <= response.status_code < 300:
-            return JsonResponse({
-                "message": "Payment request sent. Check your phone.",
-                "location": response.headers.get("Location"),
-                "status": "success"
-            }, status=response.status_code)
-
-        # Handle errors
+        # ✅ Handle JSON + Non-JSON safely
         try:
-            error_data = response.json()
-            logger.error(f"KopoKopo API Error: {error_data}")
-            return JsonResponse({"error": error_data}, status=response.status_code)
+            response_data = payment_res.json()
         except ValueError:
-            logger.error(f"Non-JSON Error: {response.text}")
-            if response.status_code == 500:
-                return JsonResponse({"error": "Payment service internal error."}, status=500)
-            return JsonResponse({"error": "Unexpected error with payment service."}, status=response.status_code)
+            logger.error(f"Non-JSON Error ({payment_res.status_code}): {payment_res.text}")
+            return JsonResponse(
+                {"error": "KopoKopo returned non-JSON response", "status": payment_res.status_code},
+                status=500
+            )
 
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Network error: {str(e)}")
-        return JsonResponse({"error": "Failed to connect to payment gateway."}, status=503)
+        logger.info(f"KopoKopo Response {payment_res.status_code} → {response_data}")
+        return JsonResponse(response_data, status=payment_res.status_code)
+
     except Exception as e:
-        logger.error(f"Payment error: {str(e)}")
-        logger.error(traceback.format_exc())
-        return JsonResponse({"error": "Internal server error."}, status=500)
+        logger.exception("Payment initiation failed")
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 
