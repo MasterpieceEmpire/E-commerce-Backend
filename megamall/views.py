@@ -583,20 +583,20 @@ def initiate_payment(request):
 
     # ✅ CORRECTED: Use the proper payload structure from documentation
     payload = {
-        "payment_channel": "MPESA",  # Changed from "M-PESA STK Push"
-        "till_number": till_number,
-        "first_name": request.user.first_name if request.user.is_authenticated else "Guest",
-        "last_name": request.user.last_name if request.user.is_authenticated else "User",
-        "phone_number": phone,
-        "email": request.user.email if request.user.is_authenticated else "",
-        "amount": str(amount),
-        "currency": "KES",
-        "callback_url": callback_url,
-        "metadata": {
-            "customer_id": str(request.user.id) if request.user.is_authenticated else "guest",
-            "order_id": request.data.get("order_id", ""),
-            "notes": f"Payment for order {request.data.get('order_id', '')}"
-        }
+    "payment_channel": "MPESA",
+    "till_number": config("KOPOKOPO_TILL_NUMBER"),
+    "first_name": request.user.first_name or "Guest",
+    "last_name": request.user.last_name or "User",
+    "phone_number": phone,
+    "email": request.user.email or "guest@example.com",
+    "amount": str(amount),
+    "currency": "KES",
+    "callback_url": config("KOPOKOPO_CALLBACK_URL"),
+    "metadata": {
+        "customer_id": str(request.user.id) if request.user.is_authenticated else "guest",
+        "order_id": request.data.get("order_id") or "guest-order",
+        "notes": f"Payment for order {request.data.get('order_id') or 'guest-order'}"
+    }
     }
 
     # ✅ CORRECTED ENDPOINT: Use incoming_payments instead of mpesa_stk_push
