@@ -555,106 +555,119 @@ def get_kopokopo_access_token():
         logger.error(f"KopoKopo token error: {e}")
         return None
 
+import requests
+from django.http import JsonResponse
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework import permissions
+from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def normalize_phone(phone: str) -> str:
-    """Ensure phone is in format +254XXXXXXXX."""
-    phone = phone.strip().replace(" ", "").replace("-", "")
+    """Ensure phone number is always in +2547XXXXXXXX format"""
+    phone = str(phone).strip()
     if phone.startswith("+254"):
         return phone
-    if phone.startswith("0"):
-        return "+254" + phone[1:]
-    if phone.startswith("254"):
-        return "+" + phone
-    return "+254" + phone  # fallback if user enters only digits
+    elif phone.startswith("254"):
+        return f"+{phone}"
+    elif phone.startswith("07"):
+        return f"+254{phone[1:]}"
+    return phone
+
 
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
     phone = request.data.get("phone")
     amount = request.data.get("amount")
-    order_id = request.data.get("order_id")  # optional
-    first_name = request.data.get("first_name")
-    last_name = request.data.get("last_name")
+    first_name = request.data.get("first_name", "Customer")
+    last_name = request.data.get("last_name", "")
+    order_id = request.data.get("order_id", "order")
+    email = request.data.get("email", "noemail@example.com")
 
     if not phone or not amount:
         return JsonResponse({"error": "Phone and amount are required"}, status=400)
 
-    # ✅ Normalize phone number to +2547XXXXXXXX
-    phone = str(phone).strip().replace(" ", "").replace("+", "")
-    if phone.startswith("0"):
-        phone = "254" + phone[1:]
-    elif phone.startswith("7"):
-        phone = "254" + phone
-    elif phone.startswith("254"):
-        pass
-    else:
-        return JsonResponse({"error": "Invalid phone number format"}, status=400)
-    phone = f"+{phone}"
+    phone = normalize_phone(phone)
+
+    # Step 1: Get Access Token
+    token_url = "https://api.kopokopo.com/oauth/token"
+    client_id = settings.KOPOKOPO_CLIENT_ID
+    client_secret = settings.KOPOKOPO_CLIENT_SECRET
+
+    logger.info(f"Requesting KopoKopo token from: {token_url}")
+
+    token_response = requests.post(
+        token_url,
+        data={
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "grant_type": "client_credentials",
+        },
+    )
+
+    if token_response.status_code != 200:
+        logger.error(f"KopoKopo token error: {token_response.text}")
+        return JsonResponse(
+            {"error": "Failed to get access token", "details": token_response.text},
+            status=500,
+        )
+
+    access_token = token_response.json().get("access_token")
+
+    # Step 2: Build Payload
+    payload = {
+        "data": {
+            "type": "incoming_payment",
+            "attributes": {
+                "amount": str(amount),
+                "currency": "KES",
+                "payment_channel": "MPESA",
+                "till_number": "K4189906",  # ✅ replace with your till number
+                "phone_number": phone,
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": "masterpieceempire@gmail.com"
+                "callback_url": "https://e-commerce-backend-7yft.onrender.com/api/kopokopo/callback",
+                "metadata": {
+                    "customerId": str(request.user.id),
+                    "reference": order_id,
+                    "notes": f"Payment for {order_id}",
+                },
+            },
+        }
+    }
+
+    logger.info(f"KopoKopo Request → https://api.kopokopo.com/api/v1/incoming_payments")
+    logger.info(f"Payload → {payload}")
+
+    # Step 3: Send Request
+    response = requests.post(
+        "https://api.kopokopo.com/api/v1/incoming_payments",
+        json=payload,
+        headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+    )
 
     try:
-        # 1. Get Access Token
-        token_url = f"{KOPOKOPO_BASE_URL}/oauth/token"
-        token_payload = {
-            "client_id": CLIENT_ID,
-            "client_secret": CLIENT_SECRET,
-            "grant_type": "client_credentials"
-        }
-        token_res = requests.post(token_url, data=token_payload)
-        token_data = token_res.json()
-        access_token = token_data.get("access_token")
+        response_json = response.json()
+    except Exception:
+        logger.error(f"KopoKopo non-JSON response: {response.text}")
+        return JsonResponse(
+            {"error": "KopoKopo returned non-JSON response", "status": response.status_code},
+            status=500,
+        )
 
-        if not access_token:
-            logger.error(f"KopoKopo token error: {token_data}")
-            return JsonResponse({"error": "Failed to get access token"}, status=500)
+    logger.info(f"KopoKopo Response: {response.status_code} - {response_json}")
 
-        logger.info(f"KopoKopo token response: {token_res.status_code} - {token_data}")
+    if response.status_code not in [200, 201, 202]:
+        return JsonResponse(
+            {"error": "Payment initiation failed", "details": response_json},
+            status=response.status_code,
+        )
 
-        # 2. Initiate STK Push (correct envelope format)
-        headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-        payment_url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
-
-        payload = {
-            "data": {
-                "type": "incoming_payment",
-                "attributes": {
-                    "amount": str(amount),
-                    "currency": "KES",
-                    "payment_channel": "MPESA",
-                    "till_number": "K4189906",  # ✅ your till number
-                    "phone_number": phone,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "callback_url": "https://e-commerce-backend-7yft.onrender.com/api/kopokopo/callback",
-                    "metadata": {
-                        "customerId": str(request.user.id),
-                        "reference": order_id or "order",
-                        "notes": f"Payment for {order_id or 'order'}"
-                    }
-                }
-            }
-        }
-
-        logger.info(f"KopoKopo Request → {payment_url}")
-        logger.info(f"Payload → {payload}")
-
-        payment_res = requests.post(payment_url, json=payload, headers=headers)
-
-        # ✅ Handle JSON + Non-JSON safely
-        try:
-            response_data = payment_res.json()
-        except ValueError:
-            logger.error(f"Non-JSON Error ({payment_res.status_code}): {payment_res.text}")
-            return JsonResponse(
-                {"error": "KopoKopo returned non-JSON response", "status": payment_res.status_code},
-                status=500
-            )
-
-        logger.info(f"KopoKopo Response {payment_res.status_code} → {response_data}")
-        return JsonResponse(response_data, status=payment_res.status_code)
-
-    except Exception as e:
-        logger.exception("Payment initiation failed")
-        return JsonResponse({"error": str(e)}, status=500)
-
+    return JsonResponse(response_json, status=response.status_code)
 
 
 
