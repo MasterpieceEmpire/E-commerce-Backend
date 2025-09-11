@@ -590,7 +590,7 @@ def initiate_payment(request):
     }
 
     # ✅ Correct KopoKopo endpoint
-    url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
+    url = f"{KOPOKOPO_BASE_URL}/api/v1/payment_requests"
 
     try:
         response = requests.post(url, json=payload, headers=headers)
