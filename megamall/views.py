@@ -551,7 +551,6 @@ def get_kopokopo_access_token():
         logger.error(f"KopoKopo token error: {e}")
         return None
 
-# 🔹 Initiate STK Push Payment
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
@@ -560,24 +559,25 @@ def initiate_payment(request):
     order_id = request.data.get("order_id") or "guest-order"
 
     if not phone or not amount:
-        return JsonResponse({"error": "Phone and amount are required"}, status=400)
+        return JsonResponse({"error": "Phone and amount are required."}, status=400)
 
-    # Normalize phone format
+    # ✅ Normalize phone number
     phone = phone.strip()
-    if not phone.startswith("+"):
-        phone = f"+{phone}" if phone.startswith("254") else f"+254{phone}"
+    if phone.startswith("0"):
+        phone = f"+254{phone[1:]}"
+    elif phone.startswith("254"):
+        phone = f"+{phone}"
+    elif not phone.startswith("+254"):
+        phone = f"+254{phone}"
 
+    # ✅ Get token
     access_token = get_kopokopo_access_token()
     if not access_token:
-        return JsonResponse({"error": "Failed to get access token"}, status=500)
+        return JsonResponse({"error": "Payment service unavailable. Try again later."}, status=503)
 
     api_key = config("KOPOKOPO_API_KEY")
     till_number = config("KOPOKOPO_TILL_NUMBER")
     callback_url = config("KOPOKOPO_CALLBACK_URL")
-
-    logger.info(f"KopoKopo Config - API Key: {api_key[:8]}...")
-    logger.info(f"KopoKopo Config - Till Number: {till_number}")
-    logger.info(f"KopoKopo Config - Callback URL: {callback_url}")
 
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -585,56 +585,66 @@ def initiate_payment(request):
         "ApiKey": api_key,
     }
 
+    first_name = request.data.get("first_name") or getattr(request.user, 'first_name', 'Guest') or 'Guest'
+    last_name = request.data.get("last_name") or getattr(request.user, 'last_name', 'User') or 'User'
+    email = getattr(request.user, 'email', 'guest@example.com') or 'guest@example.com'
+    customer_id = str(request.user.id) if request.user.is_authenticated else "guest"
+
+    try:
+        amount_float = float(amount)
+    except (ValueError, TypeError):
+        return JsonResponse({"error": "Invalid amount provided."}, status=400)
+
     payload = {
         "payment_channel": "MPESA",
         "till_number": till_number,
-        "first_name": request.user.first_name or "Guest",
-        "last_name": request.user.last_name or "User",
+        "first_name": first_name,
+        "last_name": last_name,
         "phone_number": phone,
-        "email": request.user.email or "guest@example.com",
-        "amount": float(amount),  # Ensure numeric format
+        "amount": amount_float,
         "currency": "KES",
         "callback_url": callback_url,
         "metadata": {
-            "customerId": str(request.user.id) if request.user.is_authenticated else "guest",
+            "customerId": customer_id,
             "reference": order_id,
             "notes": f"Payment for order {order_id}"
         }
     }
 
     url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
-    logger.info(f"KopoKopo Request to: {url}")
-    logger.info(f"Request Payload: {payload}")
+    logger.info(f"KopoKopo Request → {url}")
+    logger.info(f"Payload → {payload}")
 
     try:
         response = requests.post(url, json=payload, headers=headers)
-        logger.info(f"KopoKopo Response Status: {response.status_code}")
-        logger.info(f"KopoKopo Response Headers: {dict(response.headers)}")
-        logger.info(f"KopoKopo Response Body: {response.text}")
+        logger.info(f"KopoKopo Response {response.status_code}")
+        logger.info(f"Response Headers: {response.headers}")
 
-        location_header = response.headers.get('Location')
-        if location_header:
-            logger.info(f"Payment request location: {location_header}")
-
-        if response.status_code in [200, 201, 202]:
+        if 200 <= response.status_code < 300:
             return JsonResponse({
-                "message": "Payment request sent. Check your phone to complete the transaction.",
-                "location": location_header,
+                "message": "Payment request sent. Check your phone.",
+                "location": response.headers.get("Location"),
                 "status": "success"
             }, status=response.status_code)
-        else:
-            try:
-                error_data = response.json()
-                logger.error(f"KopoKopo API Error: {error_data}")
-                return JsonResponse(error_data, status=response.status_code)
-            except ValueError:
-                logger.error(f"KopoKopo Non-JSON Error: {response.text}")
-                return JsonResponse({"error": response.text}, status=response.status_code)
 
+        # Handle errors
+        try:
+            error_data = response.json()
+            logger.error(f"KopoKopo API Error: {error_data}")
+            return JsonResponse({"error": error_data}, status=response.status_code)
+        except ValueError:
+            logger.error(f"Non-JSON Error: {response.text}")
+            if response.status_code == 500:
+                return JsonResponse({"error": "Payment service internal error."}, status=500)
+            return JsonResponse({"error": "Unexpected error with payment service."}, status=response.status_code)
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error: {str(e)}")
+        return JsonResponse({"error": "Failed to connect to payment gateway."}, status=503)
     except Exception as e:
-        logger.error(f"KopoKopo payment error: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.error(f"Payment error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return JsonResponse({"error": "Internal server error."}, status=500)
 
 
 
