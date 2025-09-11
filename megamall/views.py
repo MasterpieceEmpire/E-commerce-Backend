@@ -553,60 +553,94 @@ def get_kopokopo_access_token():
 
 # 🔹 Initiate STK Push Payment
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
     phone = request.data.get("phone")
     amount = request.data.get("amount")
-    order_id = request.data.get("order_id", "")
 
     if not phone or not amount:
         return JsonResponse({"error": "Phone and amount are required"}, status=400)
 
+    # Get access token
     access_token = get_kopokopo_access_token()
     if not access_token:
         return JsonResponse({"error": "Failed to get access token"}, status=500)
 
+    api_key = config("KOPOKOPO_API_KEY")
+    till_number = config("KOPOKOPO_TILL_NUMBER")
+    callback_url = config("KOPOKOPO_CALLBACK_URL")
+
+    # ✅ DEBUG: Log configuration details
+    logger.info(f"KopoKopo Config - API Key: {api_key[:8]}...")
+    logger.info(f"KopoKopo Config - Till Number: {till_number}")
+    logger.info(f"KopoKopo Config - Callback URL: {callback_url}")
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "ApiKey": api_key,
+    }
+
+    # ✅ CORRECTED: Use the proper payload structure from documentation
     payload = {
-        "access_token": access_token,
-        "callback_url": config("KOPOKOPO_CALLBACK_URL"),
-        "first_name": request.user.first_name,
-        "last_name": request.user.last_name,
-        "email": request.user.email,
-        "payment_channel": "MPESA",
+        "payment_channel": "MPESA",  # Changed from "M-PESA STK Push"
+        "till_number": till_number,
+        "first_name": request.user.first_name if request.user.is_authenticated else "Guest",
+        "last_name": request.user.last_name if request.user.is_authenticated else "User",
         "phone_number": phone,
-        "till_number": config("KOPOKOPO_TILL_NUMBER"),
+        "email": request.user.email if request.user.is_authenticated else "",
         "amount": str(amount),
+        "currency": "KES",
+        "callback_url": callback_url,
         "metadata": {
-            "customerId": str(request.user.id),
-            "reference": order_id,
-            "notes": f"Payment for invoice {order_id}"
+            "customer_id": str(request.user.id) if request.user.is_authenticated else "guest",
+            "order_id": request.data.get("order_id", ""),
+            "notes": f"Payment for order {request.data.get('order_id', '')}"
         }
     }
 
-    url = f"{config('KOPOKOPO_BASE_URL')}/api/v1/incoming_payments"
-    headers = {
-        "Content-Type": "application/json"
-    }
+    # ✅ CORRECTED ENDPOINT: Use incoming_payments instead of mpesa_stk_push
+    url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
+    
+    logger.info(f"KopoKopo Request to: {url}")
+    logger.info(f"Request Payload: {payload}")
 
     try:
         response = requests.post(url, json=payload, headers=headers)
-        logger.info(f"KopoKopo Payment Response: {response.status_code} - {response.text}")
+        
+        # ✅ Detailed response analysis
+        logger.info(f"KopoKopo Response Status: {response.status_code}")
+        logger.info(f"KopoKopo Response Headers: {dict(response.headers)}")
+        logger.info(f"KopoKopo Response Body: {response.text}")
+        
+        # Check for location header (successful response)
+        location_header = response.headers.get('Location')
+        if location_header:
+            logger.info(f"Payment request location: {location_header}")
 
         if response.status_code in [200, 201, 202]:
-            location_url = response.headers.get("Location")
-            return JsonResponse({
-                "message": "Payment request sent. Check your phone to complete the transaction.",
-                "location_url": location_url,
-                "kopokopo_response": response.json()
-            }, status=200)
+            # Successful response - KopoKopo returns empty body with Location header
+            return JsonResponse(
+                {
+                    "message": "Payment request sent. Check your phone to complete the transaction.",
+                    "location": location_header,
+                    "status": "success"
+                },
+                status=response.status_code,
+            )
         else:
+            # Handle error response
             try:
-                return JsonResponse(response.json(), status=response.status_code)
+                error_data = response.json()
+                logger.error(f"KopoKopo API Error: {error_data}")
+                return JsonResponse(error_data, status=response.status_code)
             except ValueError:
+                logger.error(f"KopoKopo Non-JSON Error: {response.text}")
                 return JsonResponse({"error": response.text}, status=response.status_code)
 
     except Exception as e:
-        logger.error(f"KopoKopo payment error: {e}")
+        logger.error(f"KopoKopo payment error: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -615,9 +649,18 @@ def initiate_payment(request):
 @csrf_exempt
 def kopokopo_callback(request):
     try:
-        callback_data = request.body.decode("utf-8")
-        logger.info(f"KopoKopo Callback Data: {callback_data}")
-        return JsonResponse({"status": "success"}, status=200)
+        # KopoKopo sends POST requests with JSON payload
+        if request.method == 'POST':
+            callback_data = json.loads(request.body.decode('utf-8'))
+            logger.info(f"KopoKopo Callback Received: {callback_data}")
+            
+            # Process the callback data
+            # Typically contains: event_type, resource_id, status, etc.
+            
+            return JsonResponse({"status": "success"}, status=200)
+        else:
+            return JsonResponse({"error": "Method not allowed"}, status=405)
+            
     except Exception as e:
         logger.error(f"KopoKopo callback error: {e}")
         return JsonResponse({"error": "Invalid callback"}, status=400)
