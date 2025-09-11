@@ -496,130 +496,98 @@ def create_courier_order(request):
         traceback.print_exc()
         return JsonResponse({"error": "Failed to submit courier order."}, status=500)
 
-@api_view(["GET"])
-@permission_classes([permissions.AllowAny])
-def mpesa_access_token_view(request):
-    consumer_key = config("MPESA_CONSUMER_KEY")
-    consumer_secret = config("MPESA_CONSUMER_SECRET")
-    api_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+# Switch between sandbox and live using env var KOPOKOPO_ENV ("sandbox" or "live")
+ENVIRONMENT = config("KOPOKOPO_ENV", default="sandbox")
+
+KOPOKOPO_BASE_URL = (
+    "https://sandbox.kopokopo.com" if ENVIRONMENT == "sandbox" else "https://kopokopo.com"
+)
+
+
+# 🔹 Get OAuth Access Token
+def get_kopokopo_access_token():
+    url = f"{KOPOKOPO_BASE_URL}/oauth/token"
+    client_id = config("KOPOKOPO_CLIENT_ID")
+    client_secret = config("KOPOKOPO_CLIENT_SECRET")
+
+    payload = {
+        "grant_type": "client_credentials",
+        "client_id": client_id,
+        "client_secret": client_secret,
+    }
 
     try:
-        response = requests.get(api_url, auth=HTTPBasicAuth(consumer_key, consumer_secret))
-        access_token = response.json().get("access_token")
-
-        if access_token:
-            return JsonResponse({"token": access_token}, status=200)
-        else:
-            return JsonResponse({"error": "Failed to retrieve token"}, status=500)
+        response = requests.post(url, data=payload)
+        response.raise_for_status()
+        response_data = response.json()
+        return response_data.get("access_token")
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.error(f"KopoKopo token error: {e}")
+        return None
 
 
+# 🔹 Initiate STK Push Payment
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
-    phone = request.data.get("phone") or getattr(request.user, "phone", None)
+    phone = request.data.get("phone")
     amount = request.data.get("amount")
 
     if not phone or not amount:
-        return JsonResponse({"error": "Phone number and amount are required."}, status=400)
+        return JsonResponse({"error": "Phone and amount are required"}, status=400)
 
-    try:
-        amount = float(amount)
-        if amount <= 0:
-            raise ValueError
-    except (TypeError, ValueError):
-        return JsonResponse({"error": "Amount must be a positive number."}, status=400)
-
-    # Clean the phone number - remove any non-digit characters
-    cleaned_phone = re.sub(r'\D', '', str(phone))
-    
-    # Convert to Safaricom format (254XXXXXXXXX)
-    if cleaned_phone.startswith('254') and len(cleaned_phone) == 12:
-        # Already in correct format: 254712345678
-        formatted_phone = cleaned_phone
-    elif cleaned_phone.startswith('0') and len(cleaned_phone) == 10:
-        # Convert from 0712345678 to 254712345678
-        formatted_phone = '254' + cleaned_phone[1:]
-    elif len(cleaned_phone) == 9:
-        # Convert from 712345678 to 254712345678
-        formatted_phone = '254' + cleaned_phone
-    else:
-        return JsonResponse({
-            "error": "Phone number must be a valid Kenyan number. Examples: +254712345678, 254712345678, 0712345678"
-        }, status=400)
-
-    # Final validation for Safaricom format - CHANGED FROM 2547 to 254
-    if not formatted_phone.startswith('254') or len(formatted_phone) != 12:
-        return JsonResponse({
-            "error": "Phone number must start with 254 and be 12 digits total after conversion."
-        }, status=400)
-
-    # Generate Access Token
-    consumer_key = config("MPESA_CONSUMER_KEY")
-    consumer_secret = config("MPESA_CONSUMER_SECRET")
-    token_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
-
-    token_response = requests.get(token_url, auth=HTTPBasicAuth(consumer_key, consumer_secret))
-    access_token = token_response.json().get("access_token")
-
+    access_token = get_kopokopo_access_token()
     if not access_token:
-        return JsonResponse({"error": "Failed to obtain M-Pesa access token."}, status=500)
+        return JsonResponse({"error": "Failed to get access token"}, status=500)
 
-    # Prepare STK Push Request
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    shortcode = config("MPESA_SHORTCODE")
-    passkey = config("MPESA_PASSKEY")
-    callback_url = config("MPESA_CALLBACK_URL")
-
-    data_to_encode = shortcode + passkey + timestamp
-    password = base64.b64encode(data_to_encode.encode()).decode("utf-8")
+    api_key = config("KOPOKOPO_API_KEY")
 
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
+        "ApiKey": api_key,
     }
 
     payload = {
-        "BusinessShortCode": shortcode,
-        "Password": password,
-        "Timestamp": timestamp,
-        "TransactionType": "CustomerPayBillOnline",
-        "Amount": amount,
-        "PartyA": int(formatted_phone),  # Use the formatted phone number
-        "PartyB": shortcode,
-        "PhoneNumber": int(formatted_phone),  # Use the formatted phone number
-        "CallBackURL": callback_url,
-        "AccountReference": "MegaMall Ltd",
-        "TransactionDesc": "MegaMall Order Payment",
+        "payment_channel": "M-PESA STK Push",
+        "till_number": config("KOPOKOPO_TILL_NUMBER"),  # Your till/paybill
+        "first_name": request.user.first_name if request.user.is_authenticated else "Guest",
+        "last_name": request.user.last_name if request.user.is_authenticated else "User",
+        "phone_number": phone,
+        "amount": str(amount),
+        "currency": "KES",
+        "callback_url": config("KOPOKOPO_CALLBACK_URL"),
     }
 
-    response = requests.post(
-        "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
-        headers=headers,
-        json=payload,
-    )
+    url = f"{KOPOKOPO_BASE_URL}/api/v1/payments"
 
-    logger.info(f"M-Pesa STK Push Response: {response.status_code} - {response.text}")
-
-    if response.status_code == 200:
-        return JsonResponse({
-            "message": "Payment request sent. Check your phone to complete the transaction.",
-            "safaricom_response": response.json()
-        }, status=200)
-    else:
-        return JsonResponse(response.json(), status=response.status_code)
-
-
-@csrf_exempt
-def mpesa_callback(request):
     try:
-        callback_data = json.loads(request.body)
-        logger.info(f"M-Pesa Callback Data: {json.dumps(callback_data)}")
-        return JsonResponse({"ResultCode": 0, "ResultDesc": "Accepted"}, status=200)
+        response = requests.post(url, json=payload, headers=headers)
+        logger.info(f"KopoKopo Payment Response: {response.status_code} - {response.text}")
+
+        if response.status_code in [200, 201]:
+            return JsonResponse({
+                "message": "Payment request sent. Check your phone to complete the transaction.",
+                "kopokopo_response": response.json()
+            }, status=200)
+        else:
+            return JsonResponse(response.json(), status=response.status_code)
     except Exception as e:
-        logger.error(f"Callback processing error: {e}")
+        logger.error(f"KopoKopo payment error: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# 🔹 Handle Payment Callback
+@csrf_exempt
+def kopokopo_callback(request):
+    try:
+        callback_data = request.body.decode("utf-8")
+        logger.info(f"KopoKopo Callback Data: {callback_data}")
+        return JsonResponse({"status": "success"}, status=200)
+    except Exception as e:
+        logger.error(f"KopoKopo callback error: {e}")
         return JsonResponse({"error": "Invalid callback"}, status=400)
+
 
 from django.contrib.auth import get_user_model
 
