@@ -610,6 +610,7 @@ def initiate_payment_with_sdk(request):
         logger.error(f"KopoKopo SDK error: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)
 
+
 # 🔹 Handle Payment Callback
 @csrf_exempt
 def kopokopo_callback(request):
@@ -618,19 +619,20 @@ def kopokopo_callback(request):
         if request.method == 'POST':
             callback_data = json.loads(request.body.decode('utf-8'))
             logger.info(f"KopoKopo Callback Received: {callback_data}")
-            
+
             # Process the callback data
             # Typically contains: event_type, resource_id, status, etc.
-            
+
             return JsonResponse({"status": "success"}, status=200)
         else:
             return JsonResponse({"error": "Method not allowed"}, status=405)
-            
+
     except Exception as e:
         logger.error(f"KopoKopo callback error: {e}")
         return JsonResponse({"error": "Invalid callback"}, status=400)
 
 
+# 🔹 Create Superuser Utility
 from django.contrib.auth import get_user_model
 
 @api_view(["GET"])
