@@ -31,7 +31,6 @@ from django.views.decorators.csrf import csrf_exempt
 
 # Third-party packages
 from pymongo import MongoClient
-from k2connect import k2connect
 import certifi
 import cloudinary
 import cloudinary.api
@@ -555,7 +554,7 @@ def get_kopokopo_access_token():
 # 🔹 Initiate STK Push Payment
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
-def initiate_payment_with_sdk(request):
+def initiate_payment(request):
     phone = request.data.get("phone")
     amount = request.data.get("amount")
     order_id = request.data.get("order_id") or "guest-order"
@@ -568,47 +567,76 @@ def initiate_payment_with_sdk(request):
     if not phone.startswith("+"):
         phone = f"+{phone}" if phone.startswith("254") else f"+254{phone}"
 
-    # Initialize SDK
-    k2connect.initialize(
-        config("KOPOKOPO_CLIENT_ID"),
-        config("KOPOKOPO_CLIENT_SECRET"),
-        KOPOKOPO_BASE_URL
-    )
-
     access_token = get_kopokopo_access_token()
     if not access_token:
         return JsonResponse({"error": "Failed to get access token"}, status=500)
 
-    request_body = {
-        "access_token": access_token,
-        "callback_url": config("KOPOKOPO_CALLBACK_URL"),
+    api_key = config("KOPOKOPO_API_KEY")
+    till_number = config("KOPOKOPO_TILL_NUMBER")
+    callback_url = config("KOPOKOPO_CALLBACK_URL")
+
+    logger.info(f"KopoKopo Config - API Key: {api_key[:8]}...")
+    logger.info(f"KopoKopo Config - Till Number: {till_number}")
+    logger.info(f"KopoKopo Config - Callback URL: {callback_url}")
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "ApiKey": api_key,
+    }
+
+    payload = {
+        "payment_channel": "MPESA",
+        "till_number": till_number,
         "first_name": request.user.first_name or "Guest",
         "last_name": request.user.last_name or "User",
-        "email": request.user.email or "guest@example.com",
-        "payment_channel": "MPESA",
         "phone_number": phone,
-        "till_number": config("KOPOKOPO_TILL_NUMBER"),
-        "amount": str(amount),
+        "email": request.user.email or "guest@example.com",
+        "amount": float(amount),  # Ensure numeric format
+        "currency": "KES",
+        "callback_url": callback_url,
         "metadata": {
-            "customerId": str(request.user.id),
+            "customerId": str(request.user.id) if request.user.is_authenticated else "guest",
             "reference": order_id,
-            "notes": f"Payment for invoice {order_id}"
+            "notes": f"Payment for order {order_id}"
         }
     }
 
-    try:
-        stk_service = k2connect.ReceivePayments
-        location_url = stk_service.create_payment_request(request_body)
+    url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
+    logger.info(f"KopoKopo Request to: {url}")
+    logger.info(f"Request Payload: {payload}")
 
-        return JsonResponse({
-            "message": "Payment request sent. Check your phone to complete the transaction.",
-            "location": location_url,
-            "status": "success"
-        }, status=200)
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        logger.info(f"KopoKopo Response Status: {response.status_code}")
+        logger.info(f"KopoKopo Response Headers: {dict(response.headers)}")
+        logger.info(f"KopoKopo Response Body: {response.text}")
+
+        location_header = response.headers.get('Location')
+        if location_header:
+            logger.info(f"Payment request location: {location_header}")
+
+        if response.status_code in [200, 201, 202]:
+            return JsonResponse({
+                "message": "Payment request sent. Check your phone to complete the transaction.",
+                "location": location_header,
+                "status": "success"
+            }, status=response.status_code)
+        else:
+            try:
+                error_data = response.json()
+                logger.error(f"KopoKopo API Error: {error_data}")
+                return JsonResponse(error_data, status=response.status_code)
+            except ValueError:
+                logger.error(f"KopoKopo Non-JSON Error: {response.text}")
+                return JsonResponse({"error": response.text}, status=response.status_code)
 
     except Exception as e:
-        logger.error(f"KopoKopo SDK error: {str(e)}")
+        logger.error(f"KopoKopo payment error: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return JsonResponse({"error": str(e)}, status=500)
+
+
 
 
 # 🔹 Handle Payment Callback
@@ -619,20 +647,19 @@ def kopokopo_callback(request):
         if request.method == 'POST':
             callback_data = json.loads(request.body.decode('utf-8'))
             logger.info(f"KopoKopo Callback Received: {callback_data}")
-
+            
             # Process the callback data
             # Typically contains: event_type, resource_id, status, etc.
-
+            
             return JsonResponse({"status": "success"}, status=200)
         else:
             return JsonResponse({"error": "Method not allowed"}, status=405)
-
+            
     except Exception as e:
         logger.error(f"KopoKopo callback error: {e}")
         return JsonResponse({"error": "Invalid callback"}, status=400)
 
 
-# 🔹 Create Superuser Utility
 from django.contrib.auth import get_user_model
 
 @api_view(["GET"])
