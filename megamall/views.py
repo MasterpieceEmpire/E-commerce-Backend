@@ -506,12 +506,23 @@ KOPOKOPO_BASE_URL = (
 
 
 # 🔹 Get OAuth Access Token
-def get_kopokopo_access_token():
-    url = f"{KOPOKOPO_BASE_URL}/oauth/token"
-    client_id = config("KOPOKOPO_CLIENT_ID", default=None)
-    client_secret = config("KOPOKOPO_CLIENT_SECRET", default=None)
+kopokopo_token_cache = {"token": None, "expires_at": None}
 
-    # Encode client_id:client_secret in base64
+def get_kopokopo_access_token():
+    global kopokopo_token_cache
+
+    # If cached and not expired, reuse
+    if (
+        kopokopo_token_cache["token"]
+        and kopokopo_token_cache["expires_at"]
+        and kopokopo_token_cache["expires_at"] > datetime.utcnow()
+    ):
+        return kopokopo_token_cache["token"]
+
+    url = f"{KOPOKOPO_BASE_URL}/oauth/token"
+    client_id = config("KOPOKOPO_CLIENT_ID")
+    client_secret = config("KOPOKOPO_CLIENT_SECRET")
+
     auth_str = f"{client_id}:{client_secret}"
     b64_auth = base64.b64encode(auth_str.encode()).decode()
 
@@ -519,7 +530,6 @@ def get_kopokopo_access_token():
         "Authorization": f"Basic {b64_auth}",
         "Content-Type": "application/x-www-form-urlencoded",
     }
-
     payload = {"grant_type": "client_credentials"}
 
     try:
@@ -527,7 +537,16 @@ def get_kopokopo_access_token():
         response = requests.post(url, data=payload, headers=headers)
         logger.info(f"KopoKopo token response: {response.status_code} - {response.text}")
         response.raise_for_status()
-        return response.json().get("access_token")
+
+        data = response.json()
+        token = data.get("access_token")
+        expires_in = data.get("expires_in", 3600)
+
+        # Cache token with expiry
+        kopokopo_token_cache["token"] = token
+        kopokopo_token_cache["expires_at"] = datetime.utcnow() + timedelta(seconds=expires_in - 60)
+
+        return token
     except Exception as e:
         logger.error(f"KopoKopo token error: {e}")
         return None
@@ -557,7 +576,7 @@ def initiate_payment(request):
 
     payload = {
         "payment_channel": "M-PESA STK Push",
-        "till_number": config("KOPOKOPO_TILL_NUMBER"),  # Your till/paybill
+        "till_number": config("KOPOKOPO_TILL_NUMBER"),
         "first_name": request.user.first_name if request.user.is_authenticated else "Guest",
         "last_name": request.user.last_name if request.user.is_authenticated else "User",
         "phone_number": phone,
@@ -573,10 +592,13 @@ def initiate_payment(request):
         logger.info(f"KopoKopo Payment Response: {response.status_code} - {response.text}")
 
         if response.status_code in [200, 201]:
-            return JsonResponse({
-                "message": "Payment request sent. Check your phone to complete the transaction.",
-                "kopokopo_response": response.json()
-            }, status=200)
+            return JsonResponse(
+                {
+                    "message": "Payment request sent. Check your phone to complete the transaction.",
+                    "kopokopo_response": response.json(),
+                },
+                status=200,
+            )
         else:
             return JsonResponse(response.json(), status=response.status_code)
     except Exception as e:
