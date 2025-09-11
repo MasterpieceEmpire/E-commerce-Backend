@@ -499,6 +499,9 @@ def create_courier_order(request):
 # Switch between sandbox and live using env var KOPOKOPO_ENV ("sandbox" or "live")
 ENVIRONMENT = config("KOPOKOPO_ENV", default="sandbox")
 
+KOPOKOPO_BASE_URL = (
+    "https://sandbox.kopokopo.com" if ENVIRONMENT == "sandbox" else "https://app.kopokopo.com"
+)
 
 
 
