@@ -500,7 +500,7 @@ def create_courier_order(request):
 ENVIRONMENT = config("KOPOKOPO_ENV", default="sandbox")
 
 KOPOKOPO_BASE_URL = (
-    "https://sandbox.kopokopo.com" if ENVIRONMENT == "sandbox" else "https://app.kopokopo.com"
+    "https://sandbox.kopokopo.com" if ENVIRONMENT == "sandbox" else "https://api.kopokopo.com"
 )
 
 
