@@ -511,35 +511,26 @@ def get_kopokopo_access_token():
     client_id = config("KOPOKOPO_CLIENT_ID", default=None)
     client_secret = config("KOPOKOPO_CLIENT_SECRET", default=None)
 
-    payload = {
-        "grant_type": "client_credentials",
-        "client_id": client_id,
-        "client_secret": client_secret,
+    # Encode client_id:client_secret in base64
+    auth_str = f"{client_id}:{client_secret}"
+    b64_auth = base64.b64encode(auth_str.encode()).decode()
+
+    headers = {
+        "Authorization": f"Basic {b64_auth}",
+        "Content-Type": "application/x-www-form-urlencoded",
     }
 
+    payload = {"grant_type": "client_credentials"}
+
     try:
-        # Log everything except the full secret for security
         logger.info(f"Requesting KopoKopo token from: {url}")
-        logger.info(f"Payload being sent: grant_type={payload['grant_type']}, client_id={payload['client_id']}, client_secret_startswith={str(client_secret)[:4]}****")
-
-        response = requests.post(url, data=payload, headers={"Content-Type": "application/x-www-form-urlencoded"})
-        
+        response = requests.post(url, data=payload, headers=headers)
         logger.info(f"KopoKopo token response: {response.status_code} - {response.text}")
-
-        response.raise_for_status()  # will throw HTTPError on 401/400
-        response_data = response.json()
-
-        access_token = response_data.get("access_token")
-        if not access_token:
-            logger.error("No access_token found in KopoKopo response")
-        return access_token
-
-    except requests.exceptions.HTTPError as http_err:
-        logger.error(f"KopoKopo HTTP error: {http_err}")
+        response.raise_for_status()
+        return response.json().get("access_token")
     except Exception as e:
         logger.error(f"KopoKopo token error: {e}")
-    return None
-
+        return None
 
 
 # 🔹 Initiate STK Push Payment
