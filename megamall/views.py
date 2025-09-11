@@ -551,7 +551,6 @@ def get_kopokopo_access_token():
         logger.error(f"KopoKopo token error: {e}")
         return None
 
-
 # 🔹 Initiate STK Push Payment
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
@@ -575,7 +574,7 @@ def initiate_payment(request):
         "ApiKey": api_key,
     }
 
-    # ✅ Correct KopoKopo payload format
+    # ✅ Correct payload format for KopoKopo STK Push
     payload = {
         "payment_channel": "M-PESA STK Push",
         "till_number": config("KOPOKOPO_TILL_NUMBER"),
@@ -589,14 +588,14 @@ def initiate_payment(request):
         "callback_url": config("KOPOKOPO_CALLBACK_URL"),
     }
 
-    # ✅ Correct KopoKopo endpoint
+    # ✅ Correct endpoint for STK Push
     url = f"{KOPOKOPO_BASE_URL}/api/v1/payment_requests"
 
     try:
         response = requests.post(url, json=payload, headers=headers)
         logger.info(f"KopoKopo Payment Response: {response.status_code} - {response.text}")
 
-        if response.status_code in [200, 201]:
+        if response.status_code in [200, 201, 202]:
             return JsonResponse(
                 {
                     "message": "Payment request sent. Check your phone to complete the transaction.",
@@ -605,18 +604,16 @@ def initiate_payment(request):
                 status=200,
             )
         else:
-            # If body is empty, return text instead of trying response.json()
+            # Handle error response gracefully
             try:
                 return JsonResponse(response.json(), status=response.status_code)
             except ValueError:
-                return JsonResponse(
-                    {"error": f"Unexpected response: {response.text}"},
-                    status=response.status_code,
-                )
+                return JsonResponse({"error": response.text}, status=response.status_code)
 
     except Exception as e:
         logger.error(f"KopoKopo payment error: {e}")
         return JsonResponse({"error": str(e)}, status=500)
+
 
 
 
