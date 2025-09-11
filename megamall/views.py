@@ -584,10 +584,10 @@ def initiate_payment(request):
         url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json"
         }
         payload = {
-            "access_token": token,
             "callback_url": "https://e-commerce-backend-7yft.onrender.com/api/kopokopo/callback",
             "first_name": first_name,
             "last_name": last_name,
