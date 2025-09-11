@@ -79,6 +79,8 @@ from megamall.serializers import (
     HireItemSerializer,
     CourierOrderSerializer,
 )
+CLIENT_ID = config("KOPOKOPO_CLIENT_ID")
+CLIENT_SECRET = config("KOPOKOPO_CLIENT_SECRET")
 
 
 ssl_context = ssl.create_default_context(cafile=certifi.where())
