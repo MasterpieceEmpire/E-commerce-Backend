@@ -580,7 +580,7 @@ def initiate_payment(request):
         return JsonResponse({"error": "Phone and amount are required"}, status=400)
 
     try:
-        token = get_access_token()
+        token = get_kopokopo_access_token()
         url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
         headers = {
             "Authorization": f"Bearer {token}",
