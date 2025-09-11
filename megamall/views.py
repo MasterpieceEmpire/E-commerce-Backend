@@ -574,7 +574,7 @@ def initiate_payment(request):
         "ApiKey": api_key,
     }
 
-    # ✅ Correct payload format for KopoKopo STK Push
+    # ✅ CORRECTED: Use the proper M-Pesa STK Push endpoint
     payload = {
         "payment_channel": "M-PESA STK Push",
         "till_number": config("KOPOKOPO_TILL_NUMBER"),
@@ -586,10 +586,14 @@ def initiate_payment(request):
         "amount": str(amount),
         "currency": "KES",
         "callback_url": config("KOPOKOPO_CALLBACK_URL"),
+        "metadata": {
+            "customer_id": str(request.user.id) if request.user.is_authenticated else "guest",
+            "order_id": request.data.get("order_id", "")
+        }
     }
 
-    # ✅ Correct endpoint for STK Push
-    url = f"{KOPOKOPO_BASE_URL}/api/v1/payment_requests"
+    # ✅ CORRECTED ENDPOINT: Use the M-Pesa specific endpoint
+    url = f"{KOPOKOPO_BASE_URL}/api/v1/mpesa_stk_push"
 
     try:
         response = requests.post(url, json=payload, headers=headers)
@@ -613,7 +617,6 @@ def initiate_payment(request):
     except Exception as e:
         logger.error(f"KopoKopo payment error: {e}")
         return JsonResponse({"error": str(e)}, status=500)
-
 
 
 
