@@ -596,19 +596,21 @@ def initiate_payment(request):
         return JsonResponse({"error": "Invalid amount provided."}, status=400)
 
     payload = {
-        "payment_channel": "MPESA",
-        "till_number": till_number,
-        "first_name": first_name,
-        "last_name": last_name,
-        "phone_number": phone,
-        "amount": amount_float,
-        "currency": "KES",
-        "callback_url": callback_url,
-        "metadata": {
-            "customerId": customer_id,
-            "reference": order_id,
-            "notes": f"Payment for order {order_id}"
+    "data": {
+        "type": "incoming_payment",
+        "attributes": {
+            "amount": amount_float,
+            "currency": "KES",
+            "payment_channel": "MPESA",
+            "phone_number": phone,
+            "callback_url": callback_url,
+            "metadata": {
+                "customerId": customer_id,
+                "reference": order_id,
+                "notes": f"Payment for order {order_id}"
+            }
         }
+    }
     }
 
     url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
