@@ -79,8 +79,10 @@ from megamall.serializers import (
     HireItemSerializer,
     CourierOrderSerializer,
 )
-CLIENT_ID = config("KOPOKOPO_CLIENT_ID")
-CLIENT_SECRET = config("KOPOKOPO_CLIENT_SECRET")
+KOPOKOPO_BASE_URL = os.getenv("KOPOKOPO_BASE_URL", "https://api.kopokopo.com")
+CLIENT_ID = os.getenv("KOPOKOPO_CLIENT_ID")
+CLIENT_SECRET = os.getenv("KOPOKOPO_CLIENT_SECRET")
+TILL_NUMBER = os.getenv("KOPOKOPO_TILL_NUMBER") 
 
 
 ssl_context = ssl.create_default_context(cafile=certifi.where())
@@ -553,19 +555,33 @@ def get_kopokopo_access_token():
         logger.error(f"KopoKopo token error: {e}")
         return None
 
+def normalize_phone(phone: str) -> str:
+    """Ensure phone is in format +2547XXXXXXXX."""
+    phone = phone.strip().replace(" ", "").replace("-", "")
+    if phone.startswith("+254"):
+        return phone
+    if phone.startswith("0"):
+        return "+254" + phone[1:]
+    if phone.startswith("254"):
+        return "+" + phone
+    return "+254" + phone  # fallback if user enters only digits
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
     phone = request.data.get("phone")
     amount = request.data.get("amount")
     order_id = request.data.get("order_id")  # optional
+    first_name = request.data.get("first_name")
+    last_name = request.data.get("last_name")
+    email = request.data.get("email")
 
-    if not phone or not amount:
-        return JsonResponse({"error": "Phone and amount are required"}, status=400)
+    if not phone or not amount or not first_name or not last_name:
+        return JsonResponse({"error": "First name, last name, phone, and amount are required"}, status=400)
 
     # ✅ Normalize values
-    phone = phone.replace("+", "")  # remove + sign
-    amount = str(amount)            # force string
+    phone = normalize_phone(phone)
+    amount = str(amount)  # force string
 
     try:
         # 1. Get Access Token
@@ -596,10 +612,14 @@ def initiate_payment(request):
                     "amount": amount,
                     "currency": "KES",
                     "payment_channel": "MPESA",
+                    "till_number": TILL_NUMBER,
+                    "first_name": first_name,
+                    "last_name": last_name,
                     "phone_number": phone,
                     "callback_url": "https://e-commerce-backend-7yft.onrender.com/api/kopokopo/callback",
                     "metadata": {
-                        "reference": order_id or "order"
+                        "reference": order_id or "order",
+                        "notes": f"Payment for order {order_id}" if order_id else "Payment"
                     }
                 }
             }
