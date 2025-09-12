@@ -629,7 +629,7 @@ def initiate_payment(request):
                 "phone_number": phone,
                 "first_name": first_name,
                 "last_name": last_name,
-                "email": "masterpieceempire@gmail.com"
+                "email": "masterpieceempire@gmail.com",
                 "callback_url": "https://e-commerce-backend-7yft.onrender.com/api/kopokopo/callback",
                 "metadata": {
                     "customerId": str(request.user.id),
