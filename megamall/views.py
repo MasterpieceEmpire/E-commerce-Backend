@@ -567,6 +567,19 @@ def get_kopokopo_access_token():
     except Exception as e:
         logger.error(f"KopoKopo token error: {e}")
         return None
+    
+def normalize_phone(phone: str) -> str:
+    """
+    Ensure phone numbers are in +2547XXXXXXXX format
+    """
+    phone = str(phone).strip()
+    if phone.startswith("254"):
+        phone = "+" + phone
+    elif phone.startswith("0"):
+        phone = "+254" + phone[1:]
+    elif not phone.startswith("+254"):
+        phone = "+254" + phone
+    return phone
 
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
