@@ -82,7 +82,7 @@ from megamall.serializers import (
 )
 CLIENT_ID = os.getenv("KOPOKOPO_CLIENT_ID")
 CLIENT_SECRET = os.getenv("KOPOKOPO_CLIENT_SECRET")
-BASE_URL = os.getenv("KOPOKOPO_BASE_URL", "https://api.kopokopo.com/")  # sandbox/live
+BASE_URL = os.getenv("KOPOKOPO_BASE_URL", "https://sandbox.kopokopo.com/")  # sandbox/live
 TILL_NUMBER = os.getenv("KOPOKOPO_TILL_NUMBER")
 CALLBACK_URL = os.getenv("KOPOKOPO_CALLBACK_URL")
 
@@ -623,7 +623,7 @@ def initiate_payment(request):
             "email": "masterpieceempie@gmail.com",
             "payment_channel": "MPESA",
             "phone_number": phone,
-            "till_number": "K4189906",
+            "till_number": "4189906",
             "amount": amount,
             "currency": "KES",
             "metadata": {
