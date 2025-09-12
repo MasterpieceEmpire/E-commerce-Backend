@@ -80,7 +80,7 @@ from megamall.serializers import (
     HireItemSerializer,
     CourierOrderSerializer,
 )
-KOPOKOPO_BASE_URL = os.getenv("KOPOKOPO_BASE_URL", "https://api.kopokopo.com")
+KOPOKOPO_BASE_URL = os.getenv("KOPOKOPO_BASE_URL", "https://api.kopokopo.com/")
 CLIENT_ID = os.getenv("KOPOKOPO_CLIENT_ID")
 CLIENT_SECRET = os.getenv("KOPOKOPO_CLIENT_SECRET")
 TILL_NUMBER = os.getenv("KOPOKOPO_TILL_NUMBER") 
@@ -507,7 +507,7 @@ def create_courier_order(request):
 ENVIRONMENT = config("KOPOKOPO_ENV", default="sandbox")
 
 KOPOKOPO_BASE_URL = (
-    "https://sandbox.kopokopo.com" if ENVIRONMENT == "sandbox" else "https://api.kopokopo.com"
+    "https://sandbox.kopokopo.com/" if ENVIRONMENT == "sandbox" else "https://api.kopokopo.com"
 )
 
 
