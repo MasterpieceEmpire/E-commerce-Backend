@@ -504,10 +504,17 @@ def create_courier_order(request):
         return JsonResponse({"error": "Failed to submit courier order."}, status=500)
 
 # Switch between sandbox and live using env var KOPOKOPO_ENV ("sandbox" or "live")
+# Switch between sandbox and live using env var KOPOKOPO_ENV ("sandbox" or "live")
 ENVIRONMENT = config("KOPOKOPO_ENV", default="sandbox")
 
+# For direct API calls (no trailing slash)
 KOPOKOPO_BASE_URL = (
     "https://sandbox.kopokopo.com" if ENVIRONMENT == "sandbox" else "https://api.kopokopo.com"
+)
+
+# For SDK (with trailing slash) - if you decide to use it later
+KOPOKOPO_BASE_URL_SDK = (
+    "https://sandbox.kopokopo.com/" if ENVIRONMENT == "sandbox" else "https://api.kopokopo.com/"
 )
 
 @api_view(["GET"])
@@ -535,7 +542,7 @@ def get_kopokopo_access_token():
     ):
         return kopokopo_token_cache["token"]
 
-    # ✅ Use the base URL WITHOUT trailing slash
+    # ✅ Use the base URL WITHOUT trailing slash for direct API calls
     url = f"{KOPOKOPO_BASE_URL}/oauth/token"
     client_id = CLIENT_ID
     client_secret = CLIENT_SECRET
@@ -599,51 +606,65 @@ def initiate_payment(request):
         if not token:
             return JsonResponse({"error": "Failed to fetch access token"}, status=500)
 
-        # ✅ Initialize KopoKopo connection
-        k2connect.initialize(
-            CLIENT_ID, 
-            CLIENT_SECRET, 
-            KOPOKOPO_BASE_URL  # Make sure this has NO trailing slash
-        )
-        
-        # ✅ Use the correct service class
-        receive_service = k2connect.ReceivePayments
-
-        # ✅ Build request payload
-        request_body = {
-            "access_token": token,
-            "callback_url": CALLBACK_URL,
-            "currency": "KES",
+        # ✅ Build request payload (direct API format)
+        payload = {
+            "payment_channel": "MPESA",
+            "till_number": TILL_NUMBER,
             "first_name": first_name,
             "last_name": last_name,
-            "payment_channel": "MPESA",
             "phone_number": phone,
-            "till_number": TILL_NUMBER,
             "email": request.user.email if request.user.is_authenticated else "customer@example.com",
             "amount": amount,
+            "currency": "KES",
+            "callback_url": CALLBACK_URL,
             "metadata": {
-                "customerId": str(request.user.id),
-                "reference": order_id,
-                "notes": f"Payment for {order_id}"
+                "customer_id": str(request.user.id),
+                "order_id": order_id,
+                "notes": f"Payment for order {order_id}"
             }
         }
 
-        # ✅ Send request
-        stk_push_location = receive_service.create_payment_request(request_body)
-        
-        logger.info(f"KopoKopo STK Push Location: {stk_push_location}")
+        # ✅ Direct API call (bypass SDK)
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
 
-        return JsonResponse({
-            "status": "initiated", 
-            "message": "Payment request sent. Check your phone to complete the transaction.",
-            "location": stk_push_location
-        }, status=200)
+        # ✅ Use the correct endpoint URL
+        url = f"{KOPOKOPO_BASE_URL}/api/v1/incoming_payments"
+        logger.info(f"Making direct API call to: {url}")
+
+        response = requests.post(url, json=payload, headers=headers)
+        
+        logger.info(f"KopoKopo Response Status: {response.status_code}")
+        logger.info(f"KopoKopo Response Headers: {dict(response.headers)}")
+        logger.info(f"KopoKopo Response Text: {response.text}")
+
+        if response.status_code in [200, 201, 202]:
+            # Check for location header (successful response)
+            location = response.headers.get('Location')
+            return JsonResponse({
+                "status": "initiated",
+                "message": "Payment request sent. Check your phone to complete the transaction.",
+                "location": location
+            }, status=response.status_code)
+        else:
+            # Handle error response
+            try:
+                error_data = response.json()
+                return JsonResponse({
+                    "error": "KopoKopo API error",
+                    "details": error_data
+                }, status=response.status_code)
+            except ValueError:
+                return JsonResponse({
+                    "error": "KopoKopo API error",
+                    "details": response.text
+                }, status=response.status_code)
 
     except Exception as e:
         logger.exception("Unexpected error in initiate_payment")
         return JsonResponse({"error": str(e)}, status=500)
-
-
 # 🔹 Handle Payment Callback
 @csrf_exempt
 def kopokopo_callback(request):
