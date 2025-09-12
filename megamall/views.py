@@ -620,10 +620,10 @@ def initiate_payment(request):
             "callback_url": CALLBACK_URL,
             "first_name": first_name,
             "last_name": last_name,
-            "email": request.user.email,
+            "email": "masterpieceempie@gmail.com",
             "payment_channel": "MPESA",
             "phone_number": phone,
-            "till_number": TILL_NUMBER,
+            "till_number": "K4189906",
             "amount": amount,
             "currency": "KES",
             "metadata": {
