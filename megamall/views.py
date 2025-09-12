@@ -82,7 +82,7 @@ from megamall.serializers import (
 )
 CLIENT_ID = os.getenv("KOPOKOPO_CLIENT_ID")
 CLIENT_SECRET = os.getenv("KOPOKOPO_CLIENT_SECRET")
-BASE_URL = os.getenv("KOPOKOPO_BASE_URL", "https://api.kopokopo.com/")  # sandbox/live
+BASE_URL = os.getenv("KOPOKOPO_BASE_URL", "https://api.kopokopo.com")  # sandbox/live
 TILL_NUMBER = os.getenv("KOPOKOPO_TILL_NUMBER")
 CALLBACK_URL = os.getenv("KOPOKOPO_CALLBACK_URL")
 
@@ -514,7 +514,7 @@ KOPOKOPO_BASE_URL = (
 
 # For SDK (with trailing slash) - if you decide to use it later
 KOPOKOPO_BASE_URL_SDK = (
-    "https://sandbox.kopokopo.com/" if ENVIRONMENT == "sandbox" else "https://api.kopokopo.com/"
+    "https://sandbox.kopokopo.com" if ENVIRONMENT == "sandbox" else "https://api.kopokopo.com"
 )
 
 @api_view(["GET"])
