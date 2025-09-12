@@ -84,6 +84,11 @@ KOPOKOPO_BASE_URL = os.getenv("KOPOKOPO_BASE_URL", "https://api.kopokopo.com")
 CLIENT_ID = os.getenv("KOPOKOPO_CLIENT_ID")
 CLIENT_SECRET = os.getenv("KOPOKOPO_CLIENT_SECRET")
 TILL_NUMBER = os.getenv("KOPOKOPO_TILL_NUMBER") 
+CALLBACK_URL = os.getenv(
+    "KOPOKOPO_CALLBACK_URL",
+    "https://e-commerce-backend-7yft.onrender.com/api/kopokopo/callback"
+)
+
 
 
 ssl_context = ssl.create_default_context(cafile=certifi.where())
@@ -583,21 +588,25 @@ def initiate_payment(request):
         if not phone or not amount:
             return JsonResponse({"error": "Phone and amount are required"}, status=400)
 
-        # Get access token
-        logger.info("Requesting KopoKopo token from: %s/oauth/token", KOPOKOPO_BASE_URL)
-        token = k2connect.access_token
+        # ✅ Get access token
+        token = get_kopokopo_access_token()
+        if not token:
+            return JsonResponse({"error": "Failed to fetch access token"}, status=500)
 
-        # Prepare request body for KopoKopo
+        # ✅ Initialize service properly
+        receive_service = k2connect.ReceivePaymentsService(KOPOKOPO_BASE_URL)
+
+        # ✅ Build request payload
         request_body = {
             "access_token": token,
-            "callback_url": CALLBACK_URL,
+            "callback_url": config("KOPOKOPO_CALLBACK_URL"),  # <-- make sure this is in .env
             "currency": "KES",
             "first_name": first_name,
             "last_name": last_name,
             "payment_channel": "MPESA",
             "phone_number": phone,
             "till_number": TILL_NUMBER,
-            "email": "masterpiecempireorders@gmail.com",  # ✅ hardcoded email
+            "email": "masterpiecempireorders@gmail.com",
             "amount": amount,
             "metadata": {
                 "customerId": str(request.user.id),
@@ -606,12 +615,8 @@ def initiate_payment(request):
             }
         }
 
-        # Send payment request
-        logger.info("KopoKopo Payload → %s", request_body)
-        receive_service = k2connect.receive_payments_service
+        # ✅ Send request
         response = receive_service.create_payment_request(request_body)
-
-        # Log and return response
         logger.info("KopoKopo Response → %s - %s", response.status_code, response.text)
 
         if response.status_code in (200, 201):
@@ -627,6 +632,7 @@ def initiate_payment(request):
     except Exception as e:
         logger.exception("Unexpected error in initiate_payment")
         return JsonResponse({"error": str(e)}, status=500)
+
 
 # 🔹 Handle Payment Callback
 @csrf_exempt
