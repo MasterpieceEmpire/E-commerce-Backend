@@ -31,7 +31,6 @@ from django.views.decorators.csrf import csrf_exempt
 
 # Third-party packages
 from k2connect import k2connect
-from k2connect.service import ReceivePaymentsService
 from pymongo import MongoClient
 import certifi
 import cloudinary
@@ -557,91 +556,77 @@ def get_kopokopo_access_token():
         logger.error(f"KopoKopo token error: {e}")
         return None
 
-import requests
-from django.http import JsonResponse
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework import permissions
-from django.conf import settings
-import logging
-
-logger = logging.getLogger(__name__)
-
-
 def normalize_phone(phone: str) -> str:
-    """Ensure phone number is always in +2547XXXXXXXX format"""
+    """
+    Ensure phone numbers are in +2547XXXXXXXX format
+    """
     phone = str(phone).strip()
-    if phone.startswith("+254"):
-        return phone
-    elif phone.startswith("254"):
-        return f"+{phone}"
-    elif phone.startswith("07"):
-        return f"+254{phone[1:]}"
+    if phone.startswith("254"):
+        phone = "+" + phone
+    elif phone.startswith("0"):
+        phone = "+254" + phone[1:]
+    elif not phone.startswith("+254"):
+        phone = "+254" + phone
     return phone
 
 
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
-    phone = request.data.get("phone")
-    amount = request.data.get("amount")
-    first_name = request.data.get("first_name")
-    last_name = request.data.get("last_name")
-    order_id = request.data.get("order_id")
-
-    if not phone or not amount or not first_name or not last_name:
-        return JsonResponse({"error": "Phone, name, and amount are required"}, status=400)
-
-    # ✅ Normalize phone → always +2547...
-    phone = str(phone).strip()
-    if phone.startswith("0"):
-        phone = "+254" + phone[1:]
-    elif phone.startswith("254"):
-        phone = "+254" + phone[3:]
-    elif not phone.startswith("+254"):
-        phone = "+254" + phone
-
     try:
-        # 1. Initialize K2
-        k2connect.initialize(CLIENT_ID, CLIENT_SECRET, KOPOKOPO_BASE_URL)
+        phone = normalize_phone(request.data.get("phone"))
+        amount = str(request.data.get("amount"))
+        first_name = request.data.get("first_name", "Customer")
+        last_name = request.data.get("last_name", "")
+        order_id = request.data.get("order_id", "order")
 
-        # 2. Create payment request service
-        receive_service = ReceivePaymentsService(KOPOKOPO_BASE_URL)
+        if not phone or not amount:
+            return JsonResponse({"error": "Phone and amount are required"}, status=400)
 
-        # 3. Build request body
+        # Get access token
+        logger.info("Requesting KopoKopo token from: %s/oauth/token", KOPOKOPO_BASE_URL)
+        token = k2connect.access_token
+
+        # Prepare request body for KopoKopo
         request_body = {
-            "access_token": k2connect.token_service.access_token,
-            "callback_url": "https://e-commerce-backend-7yft.onrender.com/api/kopokopo/callback",
+            "access_token": token,
+            "callback_url": CALLBACK_URL,
+            "currency": "KES",
             "first_name": first_name,
             "last_name": last_name,
-            "email": "payments@masterpiece.com",   # ✅ Hardcoded email
             "payment_channel": "MPESA",
             "phone_number": phone,
-            "till_number": "K4189906",            # ✅ Your till number
-            "amount": str(amount),
+            "till_number": TILL_NUMBER,
+            "email": "masterpiecempireorders@gmail.com",  # ✅ hardcoded email
+            "amount": amount,
             "metadata": {
                 "customerId": str(request.user.id),
-                "reference": order_id or "order",
-                "notes": f"Payment for {order_id or 'order'}"
+                "reference": order_id,
+                "notes": f"Payment for {order_id}"
             }
         }
 
-        # 4. Send request
+        # Send payment request
+        logger.info("KopoKopo Payload → %s", request_body)
+        receive_service = k2connect.receive_payments_service
         response = receive_service.create_payment_request(request_body)
 
-        # 5. Extract location (request tracking URL)
-        location = ReceivePaymentsService.payment_request_location(response)
+        # Log and return response
+        logger.info("KopoKopo Response → %s - %s", response.status_code, response.text)
+
+        if response.status_code in (200, 201):
+            location = receive_service.payment_request_location(response)
+            return JsonResponse({"status": "initiated", "location": location}, status=200)
 
         return JsonResponse({
-            "message": "STK push initiated",
-            "location": location
-        }, status=response.status_code)
+            "error": "KopoKopo request failed",
+            "status": response.status_code,
+            "details": response.text
+        }, status=500)
 
     except Exception as e:
-        logger.exception("Payment initiation failed")
+        logger.exception("Unexpected error in initiate_payment")
         return JsonResponse({"error": str(e)}, status=500)
-
-
-
 
 # 🔹 Handle Payment Callback
 @csrf_exempt
