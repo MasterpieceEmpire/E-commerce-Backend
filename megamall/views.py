@@ -507,10 +507,19 @@ def create_courier_order(request):
 ENVIRONMENT = config("KOPOKOPO_ENV", default="sandbox")
 
 KOPOKOPO_BASE_URL = (
-    "https://sandbox.kopokopo.com/" if ENVIRONMENT == "sandbox" else "https://api.kopokopo.com"
+    "https://sandbox.kopokopo.com" if ENVIRONMENT == "sandbox" else "https://api.kopokopo.com"
 )
 
-
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def debug_kopokopo_config(request):
+    return JsonResponse({
+        "base_url": KOPOKOPO_BASE_URL,
+        "client_id": CLIENT_ID[:8] + "..." if CLIENT_ID else "NOT_SET",
+        "till_number": TILL_NUMBER,
+        "callback_url": CALLBACK_URL,
+        "environment": ENVIRONMENT
+    })
 
 # 🔹 Get OAuth Access Token
 kopokopo_token_cache = {"token": None, "expires_at": None}
@@ -526,9 +535,10 @@ def get_kopokopo_access_token():
     ):
         return kopokopo_token_cache["token"]
 
+    # ✅ Use the base URL WITHOUT trailing slash
     url = f"{KOPOKOPO_BASE_URL}/oauth/token"
-    client_id = config("KOPOKOPO_CLIENT_ID")
-    client_secret = config("KOPOKOPO_CLIENT_SECRET")
+    client_id = CLIENT_ID
+    client_secret = CLIENT_SECRET
 
     auth_str = f"{client_id}:{client_secret}"
     b64_auth = base64.b64encode(auth_str.encode()).decode()
@@ -558,20 +568,6 @@ def get_kopokopo_access_token():
         logger.error(f"KopoKopo token error: {e}")
         return None
 
-def normalize_phone(phone: str) -> str:
-    """
-    Ensure phone numbers are in +2547XXXXXXXX format
-    """
-    phone = str(phone).strip()
-    if phone.startswith("254"):
-        phone = "+" + phone
-    elif phone.startswith("0"):
-        phone = "+254" + phone[1:]
-    elif not phone.startswith("+254"):
-        phone = "+254" + phone
-    return phone
-
-
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
@@ -590,20 +586,27 @@ def initiate_payment(request):
         if not token:
             return JsonResponse({"error": "Failed to fetch access token"}, status=500)
 
-        # ✅ Initialize service properly
-        receive_service = k2connect.ReceivePaymentsService(KOPOKOPO_BASE_URL)
+        # ✅ Initialize KopoKopo connection
+        k2connect.initialize(
+            CLIENT_ID, 
+            CLIENT_SECRET, 
+            KOPOKOPO_BASE_URL  # Make sure this has NO trailing slash
+        )
+        
+        # ✅ Use the correct service class
+        receive_service = k2connect.ReceivePayments
 
         # ✅ Build request payload
         request_body = {
             "access_token": token,
-            "callback_url": config("KOPOKOPO_CALLBACK_URL"),  # <-- make sure this is in .env
+            "callback_url": CALLBACK_URL,
             "currency": "KES",
             "first_name": first_name,
             "last_name": last_name,
             "payment_channel": "MPESA",
             "phone_number": phone,
             "till_number": TILL_NUMBER,
-            "email": "masterpiecempireorders@gmail.com",
+            "email": request.user.email if request.user.is_authenticated else "customer@example.com",
             "amount": amount,
             "metadata": {
                 "customerId": str(request.user.id),
@@ -613,18 +616,15 @@ def initiate_payment(request):
         }
 
         # ✅ Send request
-        response = receive_service.create_payment_request(request_body)
-        logger.info("KopoKopo Response → %s - %s", response.status_code, response.text)
-
-        if response.status_code in (200, 201):
-            location = receive_service.payment_request_location(response)
-            return JsonResponse({"status": "initiated", "location": location}, status=200)
+        stk_push_location = receive_service.create_payment_request(request_body)
+        
+        logger.info(f"KopoKopo STK Push Location: {stk_push_location}")
 
         return JsonResponse({
-            "error": "KopoKopo request failed",
-            "status": response.status_code,
-            "details": response.text
-        }, status=500)
+            "status": "initiated", 
+            "message": "Payment request sent. Check your phone to complete the transaction.",
+            "location": stk_push_location
+        }, status=200)
 
     except Exception as e:
         logger.exception("Unexpected error in initiate_payment")
