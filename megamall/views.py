@@ -84,10 +84,7 @@ KOPOKOPO_BASE_URL = os.getenv("KOPOKOPO_BASE_URL", "https://api.kopokopo.com")
 CLIENT_ID = os.getenv("KOPOKOPO_CLIENT_ID")
 CLIENT_SECRET = os.getenv("KOPOKOPO_CLIENT_SECRET")
 TILL_NUMBER = os.getenv("KOPOKOPO_TILL_NUMBER") 
-CALLBACK_URL = os.getenv(
-    "KOPOKOPO_CALLBACK_URL",
-    "https://e-commerce-backend-7yft.onrender.com/api/kopokopo/callback"
-)
+CALLBACK_URL = os.getenv("KOPOKOPO_CALLBACK_URL")
 
 
 
