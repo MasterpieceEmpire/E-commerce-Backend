@@ -623,7 +623,7 @@ def initiate_payment(request):
             "email": "masterpieceempie@gmail.com",
             "payment_channel": "MPESA",
             "phone_number": phone,
-            "till_number": "4189906",
+            "till_number": "K107940",
             "amount": amount,
             "currency": "KES",
             "metadata": {
