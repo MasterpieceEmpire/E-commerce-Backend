@@ -591,17 +591,22 @@ def normalize_phone(phone: str) -> str:
 # Initialize SDK
 k2connect.initialize(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
     try:
         phone = normalize_phone(request.data.get("phone"))
 
-        # leave amount as string but ensure correct format
         raw_amount = request.data.get("amount")
-        # force a properly formatted string with two decimals
+        # Strip any non-digit / decimal chars (e.g. 'KES 2500' → '2500')
+        if raw_amount is None:
+            return JsonResponse({"error": "Amount is required"}, status=400)
+
+        import re
+        clean_amount_str = re.sub(r"[^\d.]", "", str(raw_amount))
         try:
-            amount = "{:.2f}".format(float(raw_amount))
+            amount = "{:.2f}".format(float(clean_amount_str))
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid amount"}, status=400)
 
@@ -609,8 +614,8 @@ def initiate_payment(request):
         last_name = request.data.get("last_name", "")
         order_id = request.data.get("order_id", "order")
 
-        if not phone or not amount:
-            return JsonResponse({"error": "Phone and amount are required"}, status=400)
+        if not phone:
+            return JsonResponse({"error": "Phone is required"}, status=400)
 
         token_service = k2connect.Tokens
         token_resp = token_service.request_access_token()
@@ -628,9 +633,9 @@ def initiate_payment(request):
             "email": "masterpieceempie@gmail.com",
             "payment_channel": "MPESA",
             "phone_number": phone,
-            "till_number": "K107940",    
-            "amount": amount,             
-            "currency": "KES",            
+            "till_number": "K107940",      
+            "amount": amount,              
+            "currency": "KES",
             "metadata": {
                 "customer_id": str(request.user.id),
                 "order_id": order_id,
@@ -650,7 +655,6 @@ def initiate_payment(request):
     except Exception as e:
         logger.exception("Unexpected error in initiate_payment")
         return JsonResponse({"error": str(e)}, status=500)
-
     
     
 # 🔹 Handle Payment Callback
