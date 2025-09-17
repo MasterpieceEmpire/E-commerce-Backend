@@ -591,7 +591,6 @@ def normalize_phone(phone: str) -> str:
 # Initialize SDK
 k2connect.initialize(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 
-
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
@@ -599,14 +598,13 @@ def initiate_payment(request):
         phone = normalize_phone(request.data.get("phone"))
 
         raw_amount = request.data.get("amount")
-        # Strip any non-digit / decimal chars (e.g. 'KES 2500' → '2500')
         if raw_amount is None:
             return JsonResponse({"error": "Amount is required"}, status=400)
 
         import re
         clean_amount_str = re.sub(r"[^\d.]", "", str(raw_amount))
         try:
-            amount = "{:.2f}".format(float(clean_amount_str))
+            amount = str(int(float(clean_amount_str)))
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid amount"}, status=400)
 
@@ -633,8 +631,8 @@ def initiate_payment(request):
             "email": "masterpieceempie@gmail.com",
             "payment_channel": "MPESA",
             "phone_number": phone,
-            "till_number": "K107940",      
-            "amount": amount,              
+            "till_number": "K107940",
+            "amount": amount,  
             "currency": "KES",
             "metadata": {
                 "customer_id": str(request.user.id),
@@ -655,6 +653,7 @@ def initiate_payment(request):
     except Exception as e:
         logger.exception("Unexpected error in initiate_payment")
         return JsonResponse({"error": str(e)}, status=500)
+
     
     
 # 🔹 Handle Payment Callback
