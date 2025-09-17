@@ -591,13 +591,18 @@ def normalize_phone(phone: str) -> str:
 # Initialize SDK
 k2connect.initialize(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
     try:
-        # Normalize input
         phone = normalize_phone(request.data.get("phone"))
-        amount = str(request.data.get("amount"))
+        # ✅ convert amount to float instead of string
+        try:
+            amount = float(request.data.get("amount"))
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "Invalid amount"}, status=400)
+
         first_name = request.data.get("first_name", "Customer")
         last_name = request.data.get("last_name", "")
         order_id = request.data.get("order_id", "order")
@@ -624,7 +629,7 @@ def initiate_payment(request):
             "payment_channel": "MPESA",
             "phone_number": phone,
             "till_number": "K107940",
-            "amount": amount,
+            "amount": amount,             
             "currency": "KES",
             "metadata": {
                 "customer_id": str(request.user.id),
