@@ -25,6 +25,7 @@ from megamall.views import (
     NoSignalLoginView,
     upload_image,  
     test_mongo_connection,
+    kopokopo_callback,
 )
 
 # DRF Router (only for ViewSets)
@@ -54,6 +55,7 @@ api_urlpatterns = [
 
     # M-Pesa
     path('payment/mpesa/initiate/', initiate_payment, name='initiate-payment'),
+    path('kopokopo/callback', views.kopokopo_callback, name='kopokopo-callback'),
 
     # Courier
     path('courier/', create_courier_order, name='create-courier-order'),
