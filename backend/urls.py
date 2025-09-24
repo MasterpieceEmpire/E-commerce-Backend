@@ -21,7 +21,7 @@ from megamall.views import (
     initiate_payment,
     create_courier_order,
     NoSignalLoginView,
-    upload_image,  
+    upload_image,
     test_mongo_connection,
     kopokopo_callback,
 )
@@ -34,14 +34,18 @@ router.register(r'guest-users', GuestUserViewSet, basename='guestuser')
 router.register(r'hire-items', HireItemViewSet, basename='hireitem')
 router.register(r'shipping-addresses', ShippingAddressViewSet, basename='shippingaddress')
 
-# URL Patterns
+# API URL patterns
 api_urlpatterns = [
     # API Base Routes from DRF router
     path('', include(router.urls)),
 
-    # Authentication
-    path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),  # ✅ Added this
+    # Authentication (JWT)
+    path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+    # dj-rest-auth endpoints (NO extra api/ prefix here)
+    path('dj-rest-auth/', include('dj_rest_auth.urls')),
+    path('dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
 
     # User
     path('user-profile/', user_profile, name='user-profile'),
@@ -58,12 +62,10 @@ api_urlpatterns = [
     # Courier
     path('courier/', create_courier_order, name='create-courier-order'),
 
-    # Upload url - FIXED: use the imported function directly
+    # Upload
     path('upload-image/', upload_image, name='upload_image'),
-    
-    path('api/dj-rest-auth/', include('dj_rest_auth.urls')),
-    path('api/dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
 
+    # Test Mongo
     path('test-mongo/', test_mongo_connection, name='test-mongo'),
 ]
 
@@ -74,7 +76,7 @@ urlpatterns = [
     # Custom Admin Login BEFORE default admin
     path('admin/login/', NoSignalLoginView.as_view(), name='login'),
     path('admin/', admin.site.urls),
-    
+
     # API URLs
     path('api/', include(api_urlpatterns)),
 ]
