@@ -1,5 +1,3 @@
-# urls.py
-
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -42,7 +40,7 @@ api_urlpatterns = [
     path('', include(router.urls)),
 
     # Authentication
-    path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),  # ✅ Added this
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # User
@@ -69,7 +67,6 @@ api_urlpatterns = [
     path('test-mongo/', test_mongo_connection, name='test-mongo'),
 ]
 
-
 urlpatterns = [
     # Redirect root to API base
     path('', RedirectView.as_view(url='/api/', permanent=False)),
@@ -81,4 +78,3 @@ urlpatterns = [
     # API URLs
     path('api/', include(api_urlpatterns)),
 ]
-
