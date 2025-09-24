@@ -40,6 +40,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "dj_rest_auth",
+    "dj_rest_auth.registration",   # <--- ADD THIS
+    "allauth",                     # <--- ADD THIS
+    "allauth.account",             # <--- ADD THIS
     'rest_framework.authtoken',
     'django.contrib.sites',
     'corsheaders',
@@ -49,6 +52,11 @@ INSTALLED_APPS = [
 ]
 
 SITE_ID = 1
+
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_VERIFICATION = 'none'  # change to 'mandatory' if you want email verification
 
 AUTH_USER_MODEL = "megamall.GuestUser"
 
@@ -91,6 +99,7 @@ CORS_ALLOWED_ORIGINS = [
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 REST_FRAMEWORK = {
