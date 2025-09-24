@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "dj_rest_auth.registration",   # <--- ADD THIS
     "allauth",                     # <--- ADD THIS
     "allauth.account",             # <--- ADD THIS
+    'allauth.socialaccount',
     'rest_framework.authtoken',
     'django.contrib.sites',
     'corsheaders',
