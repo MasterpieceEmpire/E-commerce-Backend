@@ -40,6 +40,7 @@ import requests
 import sendgrid
 from decouple import config
 from requests.auth import HTTPBasicAuth
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import JSONParser
@@ -191,6 +192,7 @@ class NoSignalLoginView(LoginView):
 
 
 class ProductView(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly]
     serializer_class = ProductSerializer
     parser_classes = [MultiPartParser, FormParser]  # keep only multipart/form parsers
 
@@ -216,11 +218,13 @@ class ProductView(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 class CategoryView(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly]
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
 
 class GuestUserViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly]
     queryset = GuestUser.objects.all()
     serializer_class = GuestUserSerializer
     http_method_names = ["get", "post"]
@@ -257,11 +261,13 @@ class GuestUserViewSet(viewsets.ModelViewSet):
 
 
 class ShippingAddressViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly]
     queryset = ShippingAddress.objects.all()
     serializer_class = ShippingAddressSerializer
 
 
 class HireItemViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly]
     serializer_class = HireItemSerializer
     parser_classes = [MultiPartParser, FormParser]  # keep only multipart/form parsers
 
