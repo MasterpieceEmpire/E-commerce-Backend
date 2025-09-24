@@ -62,6 +62,9 @@ api_urlpatterns = [
 
     # Upload url - FIXED: use the imported function directly
     path('upload-image/', upload_image, name='upload_image'),
+    
+    path('api/auth/', include('dj_rest_auth.urls')),
+    path('api/auth/registration/', include('dj_rest_auth.registration.urls')),
 
     path('test-mongo/', test_mongo_connection, name='test-mongo'),
 ]
