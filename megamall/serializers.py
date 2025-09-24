@@ -2,6 +2,7 @@
 from io import BytesIO
 from bson import ObjectId
 from rest_framework import serializers
+from dj_rest_auth.registration.serializers import RegisterSerializer
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.hashers import make_password
@@ -190,3 +191,27 @@ class CourierOrderSerializer(BaseMongoDBSerializer):
         if 'parcel_action' in data:
             data['order_type'] = data['parcel_action']
         return data
+    
+class CustomRegisterSerializer(RegisterSerializer):
+    username = None  # removes username completely
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
+    phone = serializers.CharField(required=False, allow_blank=True)
+
+    def get_cleaned_data(self):
+        return {
+            'email': self.validated_data.get('email', ''),
+            'password1': self.validated_data.get('password1', ''),
+            'password2': self.validated_data.get('password2', ''),
+            'first_name': self.validated_data.get('first_name', ''),
+            'last_name': self.validated_data.get('last_name', ''),
+            'phone': self.validated_data.get('phone', ''),
+        }
+
+    def save(self, request):
+        user = super().save(request)
+        user.first_name = self.cleaned_data.get('first_name')
+        user.last_name = self.cleaned_data.get('last_name')
+        user.phone = self.cleaned_data.get('phone')
+        user.save()
+        return user
