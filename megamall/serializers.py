@@ -31,7 +31,7 @@ class BaseMongoDBSerializer(serializers.ModelSerializer):
 # megamall/serializers.py
 
 class BaseCloudinarySerializer(BaseMongoDBSerializer):
-    image = serializers.ImageField(write_only=True, required=False)
+    #image = serializers.ImageField(write_only=True, required=False)
     image_url = serializers.CharField(required=False)  # ✅ Make writable to accept direct URLs
 
     class Meta:
