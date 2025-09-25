@@ -224,10 +224,14 @@ class CategoryView(viewsets.ModelViewSet):
 
 
 class GuestUserViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticatedOrReadOnly]
     queryset = GuestUser.objects.all()
     serializer_class = GuestUserSerializer
     http_method_names = ["get", "post"]
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [AllowAny()]  # open signup
+        return [IsAuthenticatedOrReadOnly()]  # restrict listing to authenticated
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -245,10 +249,18 @@ class GuestUserViewSet(viewsets.ModelViewSet):
                 phone=data.get("phone", ""),
             )
             serializer = self.get_serializer(guest_user)
+
+            # create refresh + access tokens
             refresh = RefreshToken.for_user(guest_user)
+            access = str(refresh.access_token)
 
             return Response(
-                {**serializer.data, "token": str(refresh.access_token)}, status=201
+                {
+                    **serializer.data,
+                    "access": access,
+                    "refresh": str(refresh)
+                },
+                status=201
             )
 
         except IntegrityError:
