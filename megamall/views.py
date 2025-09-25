@@ -150,24 +150,27 @@ def upload_image(request):
         
         if not image_file:
             return Response({"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST)
-
+        
+        # Simple direct upload
         result = cloudinary.uploader.upload(
-            image_file,  # Django file object
+            image_file,
             folder=folder,
             use_filename=True,
             unique_filename=True,
             overwrite=False
         )
+        
         return Response({
             "url": result['secure_url'],
             "public_id": result['public_id'],
-            "format": result['format'],
-            "version": result['version']
+            "format": result['format']
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
         logger.error(f"Image upload error: {str(e)}")
-        return Response({"error": f"Failed to upload image: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
+        return Response({"error": "Failed to upload image"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+        
 def cloudinary_debug(request):
     from cloudinary_storage.storage import MediaCloudinaryStorage
     storage = MediaCloudinaryStorage()

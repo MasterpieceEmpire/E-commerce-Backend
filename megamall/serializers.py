@@ -30,6 +30,19 @@ class BaseMongoDBSerializer(serializers.ModelSerializer):
 # ----------------------------
 # megamall/serializers.py
 
+class BaseMongoDBSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(read_only=True)
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        for key, value in rep.items():
+            if isinstance(value, ObjectId):
+                rep[key] = str(value)
+        return rep
+
+# ----------------------------
+# SIMPLIFIED Base serializer - Just accepts image_url as string
+# ----------------------------
 class BaseCloudinarySerializer(BaseMongoDBSerializer):
     # Remove the complex image handling since we upload separately
     image_url = serializers.URLField(required=False, allow_blank=True)
@@ -37,8 +50,22 @@ class BaseCloudinarySerializer(BaseMongoDBSerializer):
     class Meta:
         abstract = True
 
-    # Remove the create and update methods - let ModelSerializer handle normally
-    # The image_url will be saved directly as a string URL
+    # Remove the create and update methods that reference upload_to_cloudinary
+    # Let ModelSerializer handle normal field saving
+
+    def create(self, validated_data):
+        # Simply create the instance with the provided data
+        # image_url will be saved as a string from the frontend
+        ModelClass = self.Meta.model
+        instance = ModelClass.objects.create(**validated_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        # Simply update the instance with the provided data
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 # ----------------------------
 # Product Serializer
