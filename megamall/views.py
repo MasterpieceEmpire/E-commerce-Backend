@@ -142,30 +142,37 @@ def test_mongo_connection(request):
 @permission_classes([IsAuthenticated])
 def upload_image(request):
     """
-    Upload an image to Cloudinary and return the URL in the correct format
+    Debug version to see exactly what's happening
     """
     try:
+        print("=== UPLOAD IMAGE DEBUG ===")
+        print("Files received:", dict(request.FILES))
+        print("Data received:", dict(request.data))
+        
         image_file = request.FILES.get('image')
         folder = request.data.get('folder', 'general')
         
         if not image_file:
+            print("❌ No image file received")
             return Response({"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # ✅ Enhanced Cloudinary configuration for your desired URL format
+        print(f"📁 Folder: {folder}")
+        print(f"📄 File: {image_file.name}, Size: {image_file.size}, Type: {image_file.content_type}")
+        
+        # Test upload
         result = cloudinary.uploader.upload(
             image_file,
             folder=folder,
-            use_filename=True,           # Use original filename as part of public_id
-            unique_filename=True,        # Ensure unique filenames
-            overwrite=False,             # Don't overwrite existing files
-            invalidate=True,             # Invalidate CDN cache
-            resource_type="auto"         # Auto-detect image type
+            use_filename=True,
+            unique_filename=True
         )
         
-        # The URL should now match your desired format:
-        # https://res.cloudinary.com/masterpieceempire/image/upload/v1757574283/thufhhtaxymd5v1fzyan.jpg
-        
-        print(f"Upload successful: {result['secure_url']}")  # Debug log
+        print("✅ Upload successful!")
+        print(f"🔗 URL: {result['secure_url']}")
+        print(f"🆔 Public ID: {result['public_id']}")
+        print(f"📊 Format: {result['format']}")
+        print(f"🔢 Version: {result['version']}")
+        print("=======================")
         
         return Response({
             "url": result['secure_url'],
@@ -175,8 +182,9 @@ def upload_image(request):
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        logger.error(f"Image upload error: {str(e)}")
-        print(f"Detailed error: {str(e)}")
+        print(f"❌ Upload failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return Response({"error": f"Failed to upload image: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 def cloudinary_debug(request):
