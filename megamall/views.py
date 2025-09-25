@@ -194,7 +194,7 @@ class NoSignalLoginView(LoginView):
 class ProductView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     serializer_class = ProductSerializer
-    parser_classes = [MultiPartParser, FormParser]  # keep only multipart/form parsers
+    parser_classes = [JSONParser, MultiPartParser, FormParser]  # keep only multipart/form parsers
 
     def get_queryset(self):
         category_slug = self.request.query_params.get("category")
@@ -269,7 +269,7 @@ class ShippingAddressViewSet(viewsets.ModelViewSet):
 class HireItemViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     serializer_class = HireItemSerializer
-    parser_classes = [MultiPartParser, FormParser]  # keep only multipart/form parsers
+    parser_classes = [JSONParser, MultiPartParser, FormParser]  # keep only multipart/form parsers
 
     def get_queryset(self):
         return HireItem.objects.all().order_by('-id')
