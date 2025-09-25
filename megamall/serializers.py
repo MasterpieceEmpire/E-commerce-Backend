@@ -131,14 +131,26 @@ class ShippingAddressSerializer(BaseMongoDBSerializer):
 # Token Serializer
 # ----------------------------
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    username_field = 'email'
+    @classmethod
+    def get_token(cls, user):
+        # Get default token
+        token = super().get_token(user)
+
+        # Make sure we set the correct user_id claim
+        # (string version of your Mongo ObjectId primary key)
+        token['user_id'] = str(user.id)
+
+        # Optionally add extra info
+        token['email'] = user.email
+
+        return token
 
     def validate(self, attrs):
         data = super().validate(attrs)
         data['user_id'] = str(self.user.id)
         data['email'] = self.user.email
         return data
-
+    
 # ----------------------------
 # Order Item Serializer
 # ----------------------------
