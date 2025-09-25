@@ -142,38 +142,22 @@ def test_mongo_connection(request):
 @permission_classes([IsAuthenticated])
 def upload_image(request):
     """
-    Debug version to see exactly what's happening
+    Simple direct Cloudinary upload
     """
     try:
-        print("=== UPLOAD IMAGE DEBUG ===")
-        print("Files received:", dict(request.FILES))
-        print("Data received:", dict(request.data))
-        
         image_file = request.FILES.get('image')
         folder = request.data.get('folder', 'general')
         
         if not image_file:
-            print("❌ No image file received")
             return Response({"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        print(f"📁 Folder: {folder}")
-        print(f"📄 File: {image_file.name}, Size: {image_file.size}, Type: {image_file.content_type}")
-        
-        # Test upload
+
         result = cloudinary.uploader.upload(
-            image_file,
+            image_file,  # Django file object
             folder=folder,
             use_filename=True,
-            unique_filename=True
+            unique_filename=True,
+            overwrite=False
         )
-        
-        print("✅ Upload successful!")
-        print(f"🔗 URL: {result['secure_url']}")
-        print(f"🆔 Public ID: {result['public_id']}")
-        print(f"📊 Format: {result['format']}")
-        print(f"🔢 Version: {result['version']}")
-        print("=======================")
-        
         return Response({
             "url": result['secure_url'],
             "public_id": result['public_id'],
@@ -182,11 +166,8 @@ def upload_image(request):
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        print(f"❌ Upload failed: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return Response({"error": f"Failed to upload image: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+        logger.error(f"Image upload error: {str(e)}")
+        return Response({"error": f"Failed to upload image: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
 def cloudinary_debug(request):
     from cloudinary_storage.storage import MediaCloudinaryStorage
     storage = MediaCloudinaryStorage()
