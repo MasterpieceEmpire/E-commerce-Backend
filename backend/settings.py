@@ -4,10 +4,33 @@ from decouple import config
 from django.core.management.utils import get_random_secret_key
 from datetime import timedelta
 
+# ✅ ADD CLOUDINARY IMPORTS AND CONFIGURATION
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config("SECRET_KEY", default=get_random_secret_key())
 DEBUG = config("DEBUG", default=True, cast=bool)
+
+# ✅ CLOUDINARY SDK CONFIGURATION (ADD THIS)
+cloudinary.config(
+    cloud_name=config('CLOUDINARY_CLOUD_NAME', default=''),
+    api_key=config('CLOUDINARY_API_KEY', default=''),
+    api_secret=config('CLOUDINARY_API_SECRET', default=''),
+    secure=True
+)
+
+# Log Cloudinary configuration (optional, for debugging)
+print("=== Cloudinary Configuration ===")
+print("Cloud Name:", cloudinary.config().cloud_name)
+print("API Key:", cloudinary.config().api_key)
+print("Secure:", cloudinary.config().secure)
+print("===============================")
 
 # ----- Hosts & CSRF -----
 IS_RENDER = 'RENDER' in os.environ
@@ -163,7 +186,7 @@ if not DEBUG:
 # ----- Default PK -----
 DEFAULT_AUTO_FIELD = "django_mongodb_backend.fields.ObjectIdAutoField"
 
-# Cloudinary
+# Cloudinary Storage (for Django storage)
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
     'API_KEY': config('CLOUDINARY_API_KEY'),
