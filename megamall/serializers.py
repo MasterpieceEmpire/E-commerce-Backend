@@ -31,56 +31,24 @@ class BaseMongoDBSerializer(serializers.ModelSerializer):
 # megamall/serializers.py
 
 class BaseCloudinarySerializer(BaseMongoDBSerializer):
-    #image = serializers.ImageField(write_only=True, required=False)
-    image_url = serializers.CharField(required=False)  # ✅ Make writable to accept direct URLs
+    # Remove the complex image handling since we upload separately
+    image_url = serializers.URLField(required=False, allow_blank=True)
 
     class Meta:
         abstract = True
 
-    def create(self, validated_data):
-        image = validated_data.pop('image', None)
-        image_url = validated_data.pop('image_url', None)  # ✅ Pop it to avoid duplicate assignment
-
-        ModelClass = self.Meta.model
-        instance = ModelClass.objects.create(**validated_data)
-
-        if image:
-            result = upload_to_cloudinary(image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
-            instance.image_url = result.get("secure_url", "")
-        elif image_url:
-            instance.image_url = image_url
-
-        instance.save()
-        return instance
-
-    def update(self, instance, validated_data):
-        image = validated_data.pop("image", None)
-        image_url = validated_data.pop("image_url", None)
-
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        if image:
-            result = upload_to_cloudinary(image, folder=getattr(self.Meta, "cloudinary_folder", "uploads"))
-            instance.image_url = result.get("secure_url", "")
-        elif image_url:
-            instance.image_url = image_url
-
-        instance.save()
-        return instance
-
-
-
-
+    # Remove the create and update methods - let ModelSerializer handle normally
+    # The image_url will be saved directly as a string URL
 
 # ----------------------------
 # Product Serializer
 # ----------------------------
 class ProductSerializer(BaseCloudinarySerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    
     class Meta(BaseCloudinarySerializer.Meta):
         model = Product
-        cloudinary_folder = "products"
-        fields = "__all__"
+        fields = ['id', 'name', 'price', 'description', 'category', 'category_name', 'image_url']
 
 # ----------------------------
 # HireItem Serializer
@@ -88,8 +56,8 @@ class ProductSerializer(BaseCloudinarySerializer):
 class HireItemSerializer(BaseCloudinarySerializer):
     class Meta(BaseCloudinarySerializer.Meta):
         model = HireItem
-        cloudinary_folder = "hire_items"
-        fields = "__all__"
+        fields = ['id', 'name', 'hire_price_per_day', 'hire_price_per_hour', 'image_url', 'details']
+
 
 # ----------------------------
 # Category Serializer
