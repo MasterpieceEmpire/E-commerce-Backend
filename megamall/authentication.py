@@ -13,14 +13,7 @@ class MongoJWTAuthentication(JWTAuthentication):
             raise AuthenticationFailed("Token contained no identifiable user", code="no_user_id")
 
         try:
-            if isinstance(user_id, str):
-                try:
-                    obj_id = ObjectId(user_id)
-                except Exception:
-                    obj_id = user_id  # leave as string/int
-                user_id = obj_id
-
-            return User.objects.get(id=user_id)
-
+            return User.objects.get(id=user_id)  # ✅ Use string directly
         except User.DoesNotExist:
             raise AuthenticationFailed("User not found", code="user_not_found")
+
