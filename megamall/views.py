@@ -151,19 +151,24 @@ def upload_image(request):
         if not image_file:
             return Response({"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Upload to Cloudinary with specific settings to match your URL format
+        # ✅ Enhanced Cloudinary configuration for your desired URL format
         result = cloudinary.uploader.upload(
             image_file,
             folder=folder,
-            use_filename=True,  # This helps maintain original filename structure
-            unique_filename=True,  # This ensures unique names like thufhhtaxymd5v1fzyan
-            overwrite=False,
-            resource_type="auto"  # Automatically detect image type
+            use_filename=True,           # Use original filename as part of public_id
+            unique_filename=True,        # Ensure unique filenames
+            overwrite=False,             # Don't overwrite existing files
+            invalidate=True,             # Invalidate CDN cache
+            resource_type="auto"         # Auto-detect image type
         )
         
-        # Return the URL in the exact format you want
+        # The URL should now match your desired format:
+        # https://res.cloudinary.com/masterpieceempire/image/upload/v1757574283/thufhhtaxymd5v1fzyan.jpg
+        
+        print(f"Upload successful: {result['secure_url']}")  # Debug log
+        
         return Response({
-            "url": result['secure_url'],  # This should match your desired format
+            "url": result['secure_url'],
             "public_id": result['public_id'],
             "format": result['format'],
             "version": result['version']
@@ -171,7 +176,8 @@ def upload_image(request):
         
     except Exception as e:
         logger.error(f"Image upload error: {str(e)}")
-        return Response({"error": "Failed to upload image"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        print(f"Detailed error: {str(e)}")
+        return Response({"error": f"Failed to upload image: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 def cloudinary_debug(request):
     from cloudinary_storage.storage import MediaCloudinaryStorage
