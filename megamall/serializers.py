@@ -8,7 +8,6 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.hashers import make_password
 from .models import Product, Category, GuestUser, ShippingAddress, Order, OrderItem, CourierOrder, HireItem
 import cloudinary.uploader
-from .utils import upload_to_cloudinary
 from .fields import ObjectIdField
 from cloudinary.utils import cloudinary_url
 
